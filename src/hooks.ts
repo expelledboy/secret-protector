@@ -1,8 +1,15 @@
+import { getNested } from "./policy.js";
 import {
   detectSecretLeak,
   detectSensitiveRead,
   detectSensitiveCommand,
 } from "./detector.js";
+
+function hasBypassTag(prompt: string, tag: string): boolean {
+  if (typeof prompt !== "string") return false;
+  const needle = `[${tag}]`.toLowerCase();
+  return prompt.toLowerCase().includes(needle);
+}
 
 export function cursorDecision(
   event: string,
@@ -10,6 +17,16 @@ export function cursorDecision(
   policy: Record<string, unknown>
 ): Record<string, unknown> {
   if (event === "beforeSubmitPrompt") {
+    const bypassEnabled = getNested(policy, "bypass_tags_enabled") !== false;
+    const prompt = typeof payload === "object" && payload && "prompt" in payload
+      ? String((payload as Record<string, unknown>).prompt ?? "")
+      : "";
+
+    if (bypassEnabled) {
+      if (hasBypassTag(prompt, "allow-all")) return { continue: true };
+      if (hasBypassTag(prompt, "allow-secret") || hasBypassTag(prompt, "allow-pii")) return { continue: true };
+    }
+
     const reason = detectSecretLeak(payload, policy);
     if (reason) {
       return {

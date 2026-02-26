@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { DEFAULT_POLICY } from "./defaults.js";
 import { evaluateHook } from "./hooks.js";
 import { installRuntime, hookCommandFor } from "./install-runtime.js";
@@ -49,32 +50,62 @@ export function cmdInit(args: { force?: boolean }, paths: RuntimePaths): number 
 }
 
 export function cmdInstall(
-  args: { project?: string },
+  args: { project?: string; dryRun?: boolean; only?: string[] },
   paths: RuntimePaths,
   distSourceDir: string
 ): number {
-  if (!fs.existsSync(paths.globalConfigPath)) {
+  const projectDir = args.project ? path.resolve(args.project) : process.cwd();
+  const hasGlobalConfig = fs.existsSync(paths.globalConfigPath);
+  const [policy, projectConfig] = loadEffectivePolicy(paths, projectDir);
+
+  if (args.dryRun) {
+    const outputs: string[] = [];
+    if (!hasGlobalConfig) outputs.push("Would write global config: " + paths.globalConfigPath);
+    else outputs.push("Policy source: " + paths.globalConfigPath);
+    if (providerEnabled(policy, "cursor") && (!args.only || args.only.includes("cursor"))) {
+      outputs.push("Would upsert Cursor hooks: " + paths.cursorHooksPath);
+    }
+    if (providerEnabled(policy, "opencode") && (!args.only || args.only.includes("opencode"))) {
+      outputs.push("Would install OpenCode plugin: " + paths.opencodePluginPath);
+    }
+    if (providerEnabled(policy, "codex") && (!args.only || args.only.includes("codex"))) {
+      outputs.push("Would upsert Codex config: " + paths.codexConfigPath);
+    }
+    if (providerEnabled(policy, "copilot") && (!args.only || args.only.includes("copilot"))) {
+      outputs.push("Would write Copilot artifact: " + paths.copilotGlobalExportPath);
+      if (projectDir) {
+        const repoFile = String(getNested(policy, "copilot", "repo_file") ?? ".github/copilot-content-exclusions.txt");
+        outputs.push("Would write Copilot repo artifact: " + path.join(projectDir, repoFile));
+      }
+    }
+    outputs.push(projectConfig ? `Project override: ${projectConfig}` : "Project override: none (.secretrc not found)");
+    console.log(outputs.join("\n"));
+    return 0;
+  }
+
+  if (!hasGlobalConfig) {
     saveYamlDict(paths.globalConfigPath, { ...DEFAULT_POLICY } as Record<string, unknown>);
   }
-  const projectDir = args.project ? path.resolve(args.project) : process.cwd();
-  const [policy, projectConfig] = loadEffectivePolicy(paths, projectDir);
+
+  const shouldInstall = (p: string) =>
+    providerEnabled(policy, p) && (!args.only || (args.only && args.only.includes(p)));
 
   installRuntime(paths, distSourceDir);
 
   const outputs: string[] = [];
-  if (providerEnabled(policy, "cursor")) {
+  if (shouldInstall("cursor")) {
     const p = upsertCursorHooks(paths, (pr, ev) => hookCommandFor(paths, pr, ev));
     outputs.push(`Cursor hooks upserted: ${p}`);
   }
-  if (providerEnabled(policy, "opencode")) {
+  if (shouldInstall("opencode")) {
     const p = installOpencodePlugin(paths);
     outputs.push(`OpenCode plugin installed: ${p}`);
   }
-  if (providerEnabled(policy, "codex")) {
+  if (shouldInstall("codex")) {
     const p = installCodexConfig(paths, policy);
     outputs.push(`Codex config upserted: ${p}`);
   }
-  if (providerEnabled(policy, "copilot")) {
+  if (shouldInstall("copilot")) {
     for (const p of installCopilotArtifacts(paths, policy, projectDir)) {
       outputs.push(`Copilot exclusion artifact written: ${p}`);
     }
@@ -105,12 +136,13 @@ export function cmdHook(
 }
 
 export function cmdRenderCopilot(
-  args: { project?: string; output?: string },
+  args: { project?: string; output?: string; format?: "default" | "github" },
   paths: RuntimePaths
 ): number {
   const projectDir = args.project ? path.resolve(args.project) : process.cwd();
   const [policy] = loadEffectivePolicy(paths, projectDir);
-  const content = renderCopilotExclusions(policy);
+  const format = args.format ?? "default";
+  const content = renderCopilotExclusions(policy, format);
   if (args.output) {
     const outPath = path.resolve(args.output.replace(/^~/, os.homedir()));
     writeText(outPath, content);
@@ -131,17 +163,49 @@ export function main(
   const cmd = argv[0];
   const rest = argv.slice(1);
 
+  const VALID_PROVIDERS = ["cursor", "opencode", "codex", "copilot"] as const;
+
   const parseInit = () => ({ force: rest.includes("--force") });
-  const parseInstall = () => ({ project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined });
+  const parseInstall = () => {
+    const onlyVal = rest.find((_, i, a) => a[i - 1] === "--only") ?? rest.find((x) => x.startsWith("--only="))?.split("=")[1];
+    let only: string[] | undefined;
+    if (onlyVal) {
+      only = onlyVal.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+      const invalid = only.filter((p) => !VALID_PROVIDERS.includes(p as typeof VALID_PROVIDERS[number]));
+      if (invalid.length > 0) {
+        eprint(`Unknown provider: ${invalid.join(", ")}. Valid: ${VALID_PROVIDERS.join(", ")}`);
+        return { _invalid: true } as { project?: string; dryRun?: boolean; only?: string[]; _invalid?: boolean };
+      }
+    }
+    return {
+      project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined,
+      dryRun: rest.includes("--dry-run"),
+      only,
+    };
+  };
   const parseHook = () => ({ provider: rest[0] ?? "", event: rest[1] ?? "" });
-  const parseRenderCopilot = () => ({
-    project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined,
-    output: rest.find((_, i, a) => a[i - 1] === "--output") ?? undefined,
-  });
+  const parseRenderCopilot = () => {
+    const formatIdx = rest.findIndex((x) => x === "--format" || x.startsWith("--format="));
+    let format: "default" | "github" | undefined;
+    if (formatIdx >= 0) {
+      const arg = rest[formatIdx];
+      const val = arg.startsWith("--format=") ? arg.slice(9) : rest[formatIdx + 1];
+      format = val === "github" ? "github" : undefined;
+    }
+    return {
+      project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined,
+      output: rest.find((_, i, a) => a[i - 1] === "--output") ?? undefined,
+      format,
+    };
+  };
 
   try {
     if (cmd === "init") return cmdInit(parseInit(), paths);
-    if (cmd === "install") return cmdInstall(parseInstall(), paths, distDir);
+    if (cmd === "install") {
+      const installArgs = parseInstall();
+      if ((installArgs as { _invalid?: boolean })._invalid) return 1;
+      return cmdInstall(installArgs, paths, distDir);
+    }
     if (cmd === "hook") return cmdHook(parseHook(), paths);
     if (cmd === "render-copilot") return cmdRenderCopilot(parseRenderCopilot(), paths);
   } catch (e) {

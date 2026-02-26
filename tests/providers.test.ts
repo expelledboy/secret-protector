@@ -21,7 +21,8 @@ describe("providers", () => {
       upsertCursorHooks(paths, (p, e) => hookCommandFor(paths, p, e));
       upsertCursorHooks(paths, (p, e) => hookCommandFor(paths, p, e));
       const data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
-      for (const event of ["beforeSubmitPrompt", "beforeReadFile", "beforeTabFileRead"]) {
+      const events = ["beforeSubmitPrompt", "beforeReadFile", "beforeTabFileRead", "beforeShellExecution", "preToolUse"];
+      for (const event of events) {
         expect(data.hooks[event].length).toBe(1);
       }
     } finally {

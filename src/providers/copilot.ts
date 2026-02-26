@@ -3,19 +3,35 @@ import { writeText } from "../io.js";
 import type { RuntimePaths } from "../paths.js";
 import { asList, getNested } from "../policy.js";
 
-export function renderExclusions(policy: Record<string, unknown>): string {
-  const globs = asList(getNested(policy, "files", "globs") ?? []);
-  const regex = asList(getNested(policy, "files", "regex") ?? []);
+export function renderExclusions(
+  policy: Record<string, unknown>,
+  format: "default" | "github" = "default"
+): string {
+  const globs = [...new Set(asList(getNested(policy, "files", "globs") ?? []))].sort();
+  const regex = [...new Set(asList(getNested(policy, "files", "regex") ?? []))].sort();
+
+  if (format === "github") {
+    const lines = [
+      "# Secret Protector - Copilot content exclusion (GitHub format)",
+      "# Copy these lines into GitHub Copilot content exclusion settings (repo/org/enterprise).",
+      "# GitHub uses fnmatch; regex patterns are omitted.",
+      "",
+      ...globs.map((g) => `- "${g}"`),
+      "",
+    ];
+    return lines.join("\n");
+  }
+
   const lines = [
     "# Secret Protector - Copilot content exclusion candidates",
     "# Apply these patterns in GitHub Copilot content exclusion settings (repo/org/enterprise).",
     "# This file is a source-of-truth artifact; GitHub does not auto-read this file.",
     "",
     "[glob_patterns]",
-    ...[...new Set(globs)].sort(),
+    ...globs,
     "",
     "[regex_patterns]",
-    ...[...new Set(regex)].sort(),
+    ...regex,
     "",
   ];
   return lines.join("\n");

@@ -5,6 +5,8 @@ const EVENTS = [
   "beforeSubmitPrompt",
   "beforeReadFile",
   "beforeTabFileRead",
+  "beforeShellExecution",
+  "preToolUse",
 ] as const;
 
 export function upsertCursorHooks(

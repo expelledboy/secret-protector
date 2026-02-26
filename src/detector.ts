@@ -98,6 +98,102 @@ export function firstEnvMatch(
   return null;
 }
 
+/** File-reading commands that may take file paths as arguments. */
+const FILE_READ_COMMANDS = new Set([
+  "cat",
+  "head",
+  "tail",
+  "less",
+  "more",
+  "grep",
+  "awk",
+  "sed",
+  "bat",
+  "rg",
+]);
+
+/**
+ * Best-effort extraction of file paths from a shell command string.
+ * Handles: cat .env, grep x .env.local, head -n 1 .env, rg pattern -- .env.
+ * Limitations: subshells $(...), backticks, variable expansion in paths not parsed.
+ */
+export function extractPathsFromCommand(command: string): string[] {
+  if (typeof command !== "string" || !command.trim()) return [];
+
+  const tokens = tokenizeCommand(command);
+  const paths: string[] = [];
+  let afterFileReadCommand = false;
+  let skipUntilNextArg = false;
+
+  for (const t of tokens) {
+    if (t === "|" || t === ";" || t === "&" || t === "&&" || t === "||") {
+      afterFileReadCommand = false;
+      skipUntilNextArg = false;
+      continue;
+    }
+
+    if (FILE_READ_COMMANDS.has(t.toLowerCase())) {
+      afterFileReadCommand = true;
+      skipUntilNextArg = false;
+      continue;
+    }
+
+    if (t === "--") {
+      skipUntilNextArg = false;
+      afterFileReadCommand = true;
+      continue;
+    }
+
+    if (t.startsWith("-") && t !== "--") {
+      if (afterFileReadCommand) skipUntilNextArg = true;
+      continue;
+    }
+
+    if (skipUntilNextArg && afterFileReadCommand) {
+      skipUntilNextArg = false;
+      continue;
+    }
+
+    if (afterFileReadCommand) {
+      if (t.includes("/") || t.includes("\\") || t.startsWith(".") || /^[\w.-]+$/.test(t) || t.includes(" ")) {
+        paths.push(t);
+      }
+    }
+  }
+  return paths;
+}
+
+function tokenizeCommand(command: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < command.length) {
+    while (i < command.length && /\s/.test(command[i])) i++;
+    if (i >= command.length) break;
+
+    const ch = command[i];
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      i++;
+      let end = i;
+      while (end < command.length && command[end] !== quote) {
+        if (command[end] === "\\") end++;
+        end++;
+      }
+      tokens.push(command.slice(i, end).replace(/\\"/g, '"'));
+      i = end < command.length ? end + 1 : end;
+    } else {
+      let end = i;
+      while (end < command.length && !/\s/.test(command[end]) && command[end] !== "|" && command[end] !== ";" && command[end] !== "&" && command[end] !== '"' && command[end] !== "'") {
+        if (command[end] === "\\") end++;
+        end++;
+      }
+      tokens.push(end > i ? command.slice(i, end) : command[i] ?? "");
+      i = end === i && end < command.length ? end + 1 : end;
+    }
+  }
+  return tokens;
+}
+
 export function pathMatches(
   p: string,
   fileGlobs: string[],
@@ -180,6 +276,12 @@ export function detectSensitiveCommand(
 
   const paths: string[] = [];
   collectPaths(payload, paths);
+
+  for (const text of strings) {
+    const cmdPaths = extractPathsFromCommand(text);
+    paths.push(...cmdPaths);
+  }
+
   for (const p of paths) {
     const hit = pathMatches(p, fileGlobs, fileRegex);
     if (hit) return `Command references sensitive file path pattern: ${hit}`;

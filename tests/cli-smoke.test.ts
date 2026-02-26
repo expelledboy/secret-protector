@@ -70,4 +70,66 @@ describe("cli smoke", () => {
       fs.rmSync(tmpProject, { recursive: true, force: true });
     }
   });
+
+  test("install --dry-run creates no files", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-dry-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    const env = { ...process.env, HOME: tmpHome };
+    try {
+      const result = runCommand(["install", "--dry-run"], { env });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Would");
+      expect(fs.existsSync(path.join(tmpHome, ".cursor", "hooks.json"))).toBe(false);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  test("install --only cursor", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-only-${Date.now()}`);
+    const tmpProject = path.join(os.tmpdir(), `sp-onlyp-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(tmpProject, { recursive: true });
+    const env = { ...process.env, HOME: tmpHome };
+    try {
+      runCommand(["init"], { env });
+      runCommand(["install", "--project", tmpProject, "--only", "cursor"], { env });
+      expect(fs.existsSync(path.join(tmpHome, ".cursor", "hooks.json"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpHome, ".config", "opencode", "plugins", "secret-protector.js"))).toBe(false);
+      expect(fs.existsSync(path.join(tmpHome, ".codex", "config.toml"))).toBe(false);
+      expect(fs.existsSync(path.join(tmpProject, ".github", "copilot-content-exclusions.txt"))).toBe(false);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(tmpProject, { recursive: true, force: true });
+    }
+  });
+
+  test("install --only invalid exits with error", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-inv-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    const env = { ...process.env, HOME: tmpHome };
+    try {
+      runCommand(["init"], { env });
+      const result = runCommand(["install", "--only", "invalid"], { env });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Unknown provider");
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  test("render-copilot --format=github", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-fmt-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    const env = { ...process.env, HOME: tmpHome };
+    try {
+      runCommand(["init"], { env });
+      const result = runCommand(["render-copilot", "--format", "github"], { env });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('- ".env"');
+      expect(result.stdout).not.toContain("[glob_patterns]");
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
 });

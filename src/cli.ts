@@ -25,8 +25,11 @@ Commands:
 Options:
   --install, -i    Alias for install
   --force          Overwrite existing config (init)
+  --dry-run        Preview install without writing files (install)
+  --only <list>    Providers to install: cursor,opencode,codex,copilot (install)
   --project <path>  Project directory (install, render-copilot)
   --output <path>  Write to file (render-copilot)
+  --format <fmt>   Output format: default, github (render-copilot)
 `);
   process.exit(cmd ? 1 : 0);
 }

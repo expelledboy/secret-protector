@@ -70,4 +70,5 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
   copilot: {
     repo_file: ".github/copilot-content-exclusions.txt",
   },
+  bypass_tags_enabled: true,
 };

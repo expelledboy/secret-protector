@@ -19,7 +19,18 @@ providers:
   copilot: bool
 copilot:
   repo_file: string      # e.g. .github/copilot-content-exclusions.txt
+bypass_tags_enabled: bool  # If true, allow [allow-all], [allow-secret], [allow-pii] in prompt
 ```
+
+## Bypass Tags
+
+When `bypass_tags_enabled` is true (default), users can add tags to prompts to intentionally allow secret references:
+
+- `[allow-all]` — Skip all detection; allow the prompt.
+- `[allow-secret]` — Skip env/file detection for this prompt.
+- `[allow-pii]` — Same as allow-secret (future: separate PII detection).
+
+**Scope:** Bypass tags apply only to `beforeSubmitPrompt`. File reads and shell commands always run full detection.
 
 ## Merge Rules
 
