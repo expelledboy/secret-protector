@@ -1,0 +1,73 @@
+export const MANAGED_BLOCK_START = "# >>> secret-protector begin";
+export const MANAGED_BLOCK_END = "# <<< secret-protector end";
+
+export const DEFAULT_POLICY: Record<string, unknown> = {
+  version: 1,
+  env: {
+    exact: [
+      "GITHUB_PAT",
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "GEMINI_API_KEY",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_SESSION_TOKEN",
+      "AZURE_OPENAI_API_KEY",
+      "SLACK_BOT_TOKEN",
+      "NPM_TOKEN",
+      "PYPI_TOKEN",
+    ],
+    regex: [
+      "(?i)^[A-Z0-9_]*(TOKEN|SECRET|PASSWORD|PASS|API_KEY|PRIVATE_KEY|PAT)$",
+    ],
+    allow_exact: [
+      "HOME",
+      "PATH",
+      "SHELL",
+      "TERM",
+      "USER",
+      "LOGNAME",
+      "PWD",
+      "LANG",
+      "TMPDIR",
+      "TMP",
+      "TEMP",
+      "LC_ALL",
+      "LC_CTYPE",
+      "LC_MESSAGES",
+    ],
+    allow_regex: ["^LC_.*$"],
+  },
+  files: {
+    globs: [
+      ".env",
+      ".env.*",
+      "**/.env",
+      "**/.env.*",
+      "**/*.pem",
+      "**/*.p12",
+      "**/*.pfx",
+      "**/*.key",
+      "**/id_rsa",
+      "**/id_rsa.*",
+      "**/id_ed25519",
+      "**/id_ed25519.*",
+      "**/*secrets*.yml",
+      "**/*secrets*.yaml",
+      "**/*secrets*.json",
+    ],
+    regex: [
+      "(?i)(^|/)(credentials?|secrets?|tokens?)(/|\\\\|$)",
+      "(?i)(^|/)(\\.aws|\\.ssh|\\.gnupg)(/|$)",
+    ],
+  },
+  providers: {
+    cursor: true,
+    opencode: true,
+    codex: true,
+    copilot: true,
+  },
+  copilot: {
+    repo_file: ".github/copilot-content-exclusions.txt",
+  },
+};

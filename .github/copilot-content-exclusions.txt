@@ -1,0 +1,24 @@
+# Secret Protector - Copilot content exclusion candidates
+# Apply these patterns in GitHub Copilot content exclusion settings (repo/org/enterprise).
+# This file is a source-of-truth artifact; GitHub does not auto-read this file.
+
+[glob_patterns]
+**/*.key
+**/*.p12
+**/*.pem
+**/*.pfx
+**/*secrets*.json
+**/*secrets*.yaml
+**/*secrets*.yml
+**/.env
+**/.env.*
+**/id_ed25519
+**/id_ed25519.*
+**/id_rsa
+**/id_rsa.*
+.env
+.env.*
+
+[regex_patterns]
+(?i)(^|/)(\.aws|\.ssh|\.gnupg)(/|$)
+(?i)(^|/)(credentials?|secrets?|tokens?)(/|\\|$)

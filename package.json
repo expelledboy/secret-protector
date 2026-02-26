@@ -1,0 +1,32 @@
+{
+  "name": "secret-protector",
+  "version": "0.1.0",
+  "description": "Centralize secret-blocking policy across Cursor, OpenCode, Codex, and Copilot",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "secret-protector": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build src/cli.ts --outdir=dist --minify --target=node",
+    "dev": "bun run src/cli.ts",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.5",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.2"
+  }
+}
