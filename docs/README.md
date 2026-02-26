@@ -52,7 +52,21 @@ Default: `~/.config/secret-protector/config.yaml`
 
 See [docs/design/POLICY_SCHEMA.md](design/POLICY_SCHEMA.md) for schema. Project overrides go in `./.secretrc`; lists are merged and deduplicated. See [example.secretrc](example.secretrc).
 
+## Documentation
+
+- **[Policy schema](design/POLICY_SCHEMA.md)** — YAML structure, merge rules, defaults
+- **[Architecture](design/ARCHITECTURE.md)** — Module layout, data flow
+- **[Providers](design/PROVIDERS.md)** — Per-provider config details
+- **[Mechanics](mechanics/)** — How each agent's hooks/config work:
+  - [Cursor](mechanics/CURSOR.md)
+  - [OpenCode](mechanics/OPENCODE.md)
+  - [Codex](mechanics/CODEX.md)
+  - [Copilot](mechanics/COPILOT.md)
+- **[Ecosystem](ecosystem/)** — Similar projects, comparisons, tracking:
+  - [Overview](ecosystem/OVERVIEW.md)
+  - [Tracking](ecosystem/TRACKING.md)
+
 ## Important Notes
 
-- Codex: configures `shell_environment_policy`; Codex does not expose Cursor-style hooks for prompt interception.
-- Copilot: content exclusion must be configured in GitHub settings (repo/org/enterprise). This tool writes artifact files to copy from.
+- **Codex:** Configures `shell_environment_policy`; Codex does not expose Cursor-style hooks for prompt interception.
+- **Copilot:** Content exclusion must be configured in GitHub settings (repo/org/enterprise). This tool writes artifact files to copy from. Content exclusion does *not* apply to Copilot CLI or Agent mode.
