@@ -3,7 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { runtimePaths } from "../src/paths.js";
-import { loadEffectivePolicy, mergeValues, saveYamlDict } from "../src/policy.js";
+import {
+  findProjectConfig,
+  loadEffectivePolicy,
+  loadYamlDict,
+  mergeValues,
+  saveYamlDict,
+} from "../src/policy.js";
 
 describe("policy", () => {
   test("merge_values deduplicates lists", () => {
@@ -41,6 +47,68 @@ describe("policy", () => {
     } finally {
       fs.rmSync(tmpHome, { recursive: true, force: true });
       fs.rmSync(tmpProject, { recursive: true, force: true });
+    }
+  });
+
+  test("loadYamlDict throws on invalid YAML", () => {
+    const tmpDir = path.join(os.tmpdir(), `sp-yaml-inv-${Date.now()}`);
+    const badFile = path.join(tmpDir, "bad.yaml");
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(badFile, "foo: [unclosed\nbar: 1", "utf-8");
+    try {
+      expect(() => loadYamlDict(badFile)).toThrow();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("loadYamlDict throws on non-object root", () => {
+    const tmpDir = path.join(os.tmpdir(), `sp-yaml-arr-${Date.now()}`);
+    const arrFile = path.join(tmpDir, "arr.yaml");
+    const scalarFile = path.join(tmpDir, "scalar.yaml");
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(arrFile, "[1, 2, 3]", "utf-8");
+    fs.writeFileSync(scalarFile, "42", "utf-8");
+    try {
+      expect(() => loadYamlDict(arrFile)).toThrow("Expected object");
+      expect(() => loadYamlDict(scalarFile)).toThrow("Expected object");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("findProjectConfig walks up to find .secretrc", () => {
+    const tmpDir = path.join(os.tmpdir(), `sp-walk-${Date.now()}`);
+    const parent = path.join(tmpDir, "parent");
+    const grandchild = path.join(parent, "child", "grandchild");
+    fs.mkdirSync(grandchild, { recursive: true });
+    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  exact: [WALKUP]\n", "utf-8");
+    try {
+      const found = findProjectConfig(grandchild);
+      expect(found).toBe(path.join(parent, ".secretrc"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("loadEffectivePolicy uses ancestor .secretrc when project dir has none", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-ancestor-${Date.now()}`);
+    const parent = path.join(os.tmpdir(), `sp-ancestor-p-${Date.now()}`);
+    const child = path.join(parent, "child");
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(child, { recursive: true });
+    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  exact: [ANCESTOR_TOKEN]\n", "utf-8");
+    const paths = runtimePaths(tmpHome);
+    fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
+    saveYamlDict(paths.globalConfigPath, { version: 1, env: { exact: [] }, files: { globs: [] } });
+    try {
+      const [policy, projectCfgPath] = loadEffectivePolicy(paths, child);
+      expect(projectCfgPath).toBe(path.join(parent, ".secretrc"));
+      const envExact = new Set((policy.env as Record<string, string[]>).exact);
+      expect(envExact.has("ANCESTOR_TOKEN")).toBe(true);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(parent, { recursive: true, force: true });
     }
   });
 });

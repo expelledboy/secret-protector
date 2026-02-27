@@ -54,4 +54,39 @@ describe("detector", () => {
     const reason = detectSensitiveCommand({ command: "cat README.md" }, policy);
     expect(reason).toBeNull();
   });
+
+  test("detectSecretLeak matches env.regex", () => {
+    const policyWithRegex = {
+      ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
+      env: { exact: [], regex: ["(?i)MY_[A-Z0-9_]*_TOKEN"], allow_exact: [], allow_regex: [] },
+      files: { globs: [], regex: [] },
+    } as Record<string, unknown>;
+    const match = detectSecretLeak({ prompt: "check MY_CUSTOM_TOKEN" }, policyWithRegex);
+    expect(match).not.toBeNull();
+    expect(match).toContain("MY_CUSTOM_TOKEN");
+    const noMatch = detectSecretLeak({ prompt: "check OTHER_VAR" }, policyWithRegex);
+    expect(noMatch).toBeNull();
+  });
+
+  test("policy with invalid regex does not throw", () => {
+    const policyWithBadRegex = {
+      ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
+      env: { exact: ["GITHUB_PAT"], regex: ["[invalid("], allow_exact: [], allow_regex: [] },
+      files: { globs: [".env"], regex: [] },
+    } as Record<string, unknown>;
+    const reason = detectSecretLeak({ prompt: "use GITHUB_PAT" }, policyWithBadRegex);
+    expect(reason).not.toBeNull();
+    expect(reason).toContain("GITHUB_PAT");
+  });
+
+  test("policy with invalid glob does not throw", () => {
+    const policyWithBadGlob = {
+      ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
+      env: { exact: [], regex: [], allow_exact: [], allow_regex: [] },
+      files: { globs: [".env", "[invalid"], regex: [] },
+    } as Record<string, unknown>;
+    const reason = detectSensitiveRead({ file_path: ".env" }, policyWithBadGlob);
+    expect(reason).not.toBeNull();
+    expect(reason).toContain("sensitive file pattern");
+  });
 });
