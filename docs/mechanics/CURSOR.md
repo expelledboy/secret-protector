@@ -142,7 +142,7 @@ Hooks from all locations are merged; higher-priority hooks run first. Any hook c
 { "continue": false, "permission": "deny", "userMessage": "absolutely not" }
 ```
 
-**Note:** secret-protector has logic for this event in `hooks.ts` (`cursorDecision`) but the Cursor provider does *not* currently install it. Only `beforeSubmitPrompt`, `beforeReadFile`, `beforeTabFileRead` are registered in `src/providers/cursor.ts`.
+**Note:** secret-protector installs hooks for all five events: `beforeSubmitPrompt`, `beforeReadFile`, `beforeTabFileRead`, `beforeShellExecution`, and `preToolUse`. Individual events can be disabled via `cursor.events.<event>.enabled: false` in policy.
 
 ---
 
@@ -156,7 +156,7 @@ Hooks from all locations are merged; higher-priority hooks run first. Any hook c
 
 ## secret-protector Integration
 
-1. **Install:** `npx secret-protector install` upserts entries in `~/.cursor/hooks.json` for `beforeSubmitPrompt`, `beforeReadFile`, `beforeTabFileRead`.
+1. **Install:** `npx secret-protector install` upserts entries in `~/.cursor/hooks.json` for `beforeSubmitPrompt`, `beforeReadFile`, `beforeTabFileRead`, `beforeShellExecution`, and `preToolUse` (each can be disabled via policy).
 
 2. **Command:** Each hook invokes:
    ```

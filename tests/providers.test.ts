@@ -13,13 +13,98 @@ import { installPlugin } from "../src/providers/opencode.js";
 const policy = JSON.parse(JSON.stringify(DEFAULT_POLICY)) as Record<string, unknown>;
 
 describe("providers", () => {
+  test("cursor with all events disabled installs no hooks", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-cur-alloff-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    const pol = {
+      ...JSON.parse(JSON.stringify(policy)),
+      cursor: {
+        events: {
+          beforeSubmitPrompt: { enabled: false },
+          beforeReadFile: { enabled: false },
+          beforeTabFileRead: { enabled: false },
+          beforeShellExecution: { enabled: false },
+          preToolUse: { enabled: false },
+        },
+      },
+    } as Record<string, unknown>;
+    try {
+      const paths = runtimePaths(tmpHome);
+      upsertCursorHooks(paths, pol, (p, e) => hookCommandFor(paths, p, e));
+      const data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
+      for (const ev of ["beforeSubmitPrompt", "beforeReadFile", "beforeTabFileRead", "beforeShellExecution", "preToolUse"]) {
+        const arr = data.hooks[ev] ?? [];
+        const spHooks = arr.filter((h: { command?: string }) =>
+          String(h?.command ?? "").includes("secret-protector-hook cursor ")
+        );
+        expect(spHooks.length).toBe(0);
+      }
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  test("cursor removes hook from disabled event on reinstall", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-cur-rem-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    try {
+      const paths = runtimePaths(tmpHome);
+      upsertCursorHooks(paths, policy, (p, e) => hookCommandFor(paths, p, e));
+      let data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
+      expect(data.hooks.beforeReadFile?.length).toBeGreaterThanOrEqual(1);
+
+      const pol = {
+        ...JSON.parse(JSON.stringify(policy)),
+        cursor: { events: { ...(policy.cursor as Record<string, unknown>)?.events, beforeReadFile: { enabled: false } } },
+      } as Record<string, unknown>;
+      upsertCursorHooks(paths, pol, (p, e) => hookCommandFor(paths, p, e));
+      data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
+      const beforeRead = data.hooks.beforeReadFile ?? [];
+      const spHooks = beforeRead.filter((h: { command?: string }) =>
+        String(h?.command ?? "").includes("secret-protector-hook cursor beforeReadFile")
+      );
+      expect(spHooks.length).toBe(0);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  test("cursor with disabled events installs only enabled events", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-cur-dis-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    const pol = {
+      ...JSON.parse(JSON.stringify(policy)),
+      cursor: {
+        events: {
+          beforeSubmitPrompt: { enabled: true, mode: "block" },
+          beforeReadFile: { enabled: false },
+          beforeTabFileRead: { enabled: false },
+          beforeShellExecution: { enabled: true, mode: "block" },
+          preToolUse: { enabled: true, mode: "block" },
+        },
+      },
+    } as Record<string, unknown>;
+    try {
+      const paths = runtimePaths(tmpHome);
+      upsertCursorHooks(paths, pol, (p, e) => hookCommandFor(paths, p, e));
+      const data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
+      expect(data.hooks.beforeSubmitPrompt).toBeDefined();
+      expect(data.hooks.beforeReadFile).toEqual([]);
+      expect(data.hooks.beforeTabFileRead).toEqual([]);
+      expect(data.hooks.beforeShellExecution).toBeDefined();
+      expect(data.hooks.preToolUse).toBeDefined();
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
   test("cursor upsert is idempotent", () => {
     const tmpHome = path.join(os.tmpdir(), `sp-cur-${Date.now()}`);
     fs.mkdirSync(tmpHome, { recursive: true });
     try {
       const paths = runtimePaths(tmpHome);
-      upsertCursorHooks(paths, (p, e) => hookCommandFor(paths, p, e));
-      upsertCursorHooks(paths, (p, e) => hookCommandFor(paths, p, e));
+      upsertCursorHooks(paths, policy, (p, e) => hookCommandFor(paths, p, e));
+      upsertCursorHooks(paths, policy, (p, e) => hookCommandFor(paths, p, e));
       const data = JSON.parse(fs.readFileSync(paths.cursorHooksPath, "utf-8"));
       const events = ["beforeSubmitPrompt", "beforeReadFile", "beforeTabFileRead", "beforeShellExecution", "preToolUse"];
       for (const event of events) {
@@ -62,6 +147,24 @@ describe("providers", () => {
       expect(content).toContain("secret-protector-hook");
     } finally {
       fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  test("copilot with write_repo_file false skips repo file", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-cop-norepo-${Date.now()}`);
+    const tmpProject = path.join(os.tmpdir(), `sp-cop-norepo-p-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(tmpProject, { recursive: true });
+    const pol = { ...policy, copilot: { write_repo_file: false } } as Record<string, unknown>;
+    try {
+      const paths = runtimePaths(tmpHome);
+      const outputs = installArtifacts(paths, pol, tmpProject);
+      expect(outputs.length).toBe(1);
+      expect(outputs[0]).toBe(paths.copilotGlobalExportPath);
+      expect(fs.existsSync(path.join(tmpProject, ".github", "copilot-content-exclusions.txt"))).toBe(false);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(tmpProject, { recursive: true, force: true });
     }
   });
 

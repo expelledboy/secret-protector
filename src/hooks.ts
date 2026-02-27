@@ -1,14 +1,63 @@
-import { getNested } from "./policy.js";
+import { eprint } from "./io.js";
+import { asList, getNested } from "./policy.js";
 import {
   detectSecretLeak,
   detectSensitiveRead,
   detectSensitiveCommand,
 } from "./detector.js";
 
-function hasBypassTag(prompt: string, tag: string): boolean {
+export type DecisionMode = "block" | "warn" | "log";
+
+export function resolveMode(
+  policy: Record<string, unknown>,
+  provider: string,
+  event: string
+): DecisionMode {
+  const p = provider.trim().toLowerCase();
+  const ev = String(event);
+  const raw =
+    p === "cursor"
+      ? getNested(policy, "cursor", "events", ev, "mode")
+      : p === "opencode" && ev === "tool.execute.before"
+        ? getNested(policy, "opencode", "tool_execute_before", "mode")
+        : undefined;
+  if (raw === "warn" || raw === "log") return raw;
+  if (raw === "block") return "block";
+  const defaultMode = getNested(policy, "detection", "default_mode");
+  if (defaultMode === "warn" || defaultMode === "log") return defaultMode as DecisionMode;
+  return "block";
+}
+
+export function isCursorEventEnabled(
+  policy: Record<string, unknown>,
+  event: string
+): boolean {
+  const raw = getNested(policy, "cursor", "events", event, "enabled");
+  if (raw === false) return false;
+  return true;
+}
+
+function getBypassTags(policy: Record<string, unknown>): {
+  allowAll: string[];
+  allowSecret: string[];
+} {
+  const bypass = getNested(policy, "bypass_tags") as Record<string, unknown> | undefined;
+  const allowAllRaw = bypass?.allow_all != null ? asList(bypass.allow_all) : [];
+  const allowSecretRaw = bypass?.allow_secret != null ? asList(bypass.allow_secret) : [];
+  return {
+    allowAll: allowAllRaw.length > 0 ? allowAllRaw : ["allow-all"],
+    allowSecret: allowSecretRaw.length > 0 ? allowSecretRaw : ["allow-secret", "allow-pii"],
+  };
+}
+
+function hasBypassTag(prompt: string, tags: string[]): boolean {
   if (typeof prompt !== "string") return false;
-  const needle = `[${tag}]`.toLowerCase();
-  return prompt.toLowerCase().includes(needle);
+  const lower = prompt.toLowerCase();
+  for (const tag of tags) {
+    const needle = `[${tag}]`.toLowerCase();
+    if (lower.includes(needle)) return true;
+  }
+  return false;
 }
 
 export function cursorDecision(
@@ -17,42 +66,65 @@ export function cursorDecision(
   policy: Record<string, unknown>
 ): Record<string, unknown> {
   if (event === "beforeSubmitPrompt") {
+    if (!isCursorEventEnabled(policy, event)) return { continue: true };
     const bypassEnabled = getNested(policy, "bypass_tags_enabled") !== false;
-    const prompt = typeof payload === "object" && payload && "prompt" in payload
-      ? String((payload as Record<string, unknown>).prompt ?? "")
-      : "";
+    const prompt =
+      typeof payload === "object" && payload && "prompt" in payload
+        ? String((payload as Record<string, unknown>).prompt ?? "")
+        : "";
 
     if (bypassEnabled) {
-      if (hasBypassTag(prompt, "allow-all")) return { continue: true };
-      if (hasBypassTag(prompt, "allow-secret") || hasBypassTag(prompt, "allow-pii")) return { continue: true };
+      const { allowAll, allowSecret } = getBypassTags(policy);
+      if (hasBypassTag(prompt, allowAll)) return { continue: true };
+      if (hasBypassTag(prompt, allowSecret)) return { continue: true };
     }
 
     const reason = detectSecretLeak(payload, policy);
     if (reason) {
-      return {
-        continue: false,
-        user_message: `Blocked by secret-protector. ${reason}`,
-      };
+      const mode = resolveMode(policy, "cursor", event);
+      const msg = `Blocked by secret-protector. ${reason}`;
+      if (mode === "block") {
+        return { continue: false, user_message: msg };
+      }
+      if (mode === "warn") {
+        return { continue: true, user_message: msg };
+      }
+      eprint(msg);
+      return { continue: true };
     }
     return { continue: true };
   }
   if (event === "beforeReadFile" || event === "beforeTabFileRead") {
+    if (!isCursorEventEnabled(policy, event)) return { permission: "allow" };
     const reason = detectSensitiveRead(payload, policy);
     if (reason) {
-      return {
-        permission: "deny",
-        user_message: `Blocked by secret-protector. ${reason}`,
-      };
+      const mode = resolveMode(policy, "cursor", event);
+      const msg = `Blocked by secret-protector. ${reason}`;
+      if (mode === "block") {
+        return { permission: "deny", user_message: msg };
+      }
+      if (mode === "warn") {
+        return { permission: "allow", user_message: msg };
+      }
+      eprint(msg);
+      return { permission: "allow" };
     }
     return { permission: "allow" };
   }
   if (event === "beforeShellExecution" || event === "preToolUse") {
+    if (!isCursorEventEnabled(policy, event)) return { permission: "allow" };
     const reason = detectSensitiveCommand(payload, policy);
     if (reason) {
-      return {
-        permission: "deny",
-        user_message: `Blocked by secret-protector. ${reason}`,
-      };
+      const mode = resolveMode(policy, "cursor", event);
+      const msg = `Blocked by secret-protector. ${reason}`;
+      if (mode === "block") {
+        return { permission: "deny", user_message: msg };
+      }
+      if (mode === "warn") {
+        return { permission: "allow", user_message: msg };
+      }
+      eprint(msg);
+      return { permission: "allow" };
     }
     return { permission: "allow" };
   }
@@ -89,10 +161,16 @@ export function opencodeDecision(
     reason = detectSensitiveCommand(payload, policy);
   }
   if (reason) {
-    return {
-      block: true,
-      user_message: `Blocked by secret-protector. ${reason}`,
-    };
+    const mode = resolveMode(policy, "opencode", event);
+    const msg = `Blocked by secret-protector. ${reason}`;
+    if (mode === "block") {
+      return { block: true, user_message: msg };
+    }
+    if (mode === "warn") {
+      return { block: false, user_message: msg };
+    }
+    eprint(msg);
+    return { block: false };
   }
   return { block: false };
 }

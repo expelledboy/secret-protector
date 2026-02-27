@@ -3,6 +3,34 @@ export const MANAGED_BLOCK_END = "# <<< secret-protector end";
 
 export const DEFAULT_POLICY: Record<string, unknown> = {
   version: 1,
+  detection: {
+    path_like_keys: [
+      "path",
+      "filepath",
+      "file_path",
+      "filename",
+      "uri",
+      "absolute_path",
+      "absolutepath",
+      "relative_path",
+      "relativepath",
+      "relative_workspace_path",
+      "relativeworkspacepath",
+    ],
+    file_read_commands: [
+      "cat",
+      "head",
+      "tail",
+      "less",
+      "more",
+      "grep",
+      "awk",
+      "sed",
+      "bat",
+      "rg",
+    ],
+    default_mode: "block",
+  },
   env: {
     block_exact: [
       "GITHUB_PAT",
@@ -77,6 +105,20 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
     opencode: true,
     codex: true,
     copilot: true,
+  },
+  cursor: {
+    events: {
+      beforeSubmitPrompt: { enabled: true, mode: "block" },
+      beforeReadFile: { enabled: true, mode: "block" },
+      beforeTabFileRead: { enabled: true, mode: "block" },
+      beforeShellExecution: { enabled: true, mode: "block" },
+      preToolUse: { enabled: true, mode: "block" },
+    },
+  },
+  opencode: {
+    tool_execute_before: {
+      mode: "block",
+    },
   },
   copilot: {
     repo_file: ".github/copilot-content-exclusions.txt",

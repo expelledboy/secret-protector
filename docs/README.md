@@ -36,8 +36,8 @@ npx secret-protector install --project /path/to/repo
 
 ```bash
 bun test
-# or
-bun test ./tests/detector.test.ts ./tests/policy.test.ts ./tests/providers.test.ts ./tests/cli-smoke.test.ts
+# or run a subset:
+bun test ./tests/detector.test.ts ./tests/hooks.test.ts ./tests/policy.test.ts ./tests/providers.test.ts ./tests/cli-smoke.test.ts ./tests/install-idempotency.test.ts
 ```
 
 Run opt-in live blocking tests:

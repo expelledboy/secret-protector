@@ -103,6 +103,34 @@ describe("cli smoke", () => {
     }
   });
 
+  test("hook with warn mode allows prompt but includes user_message", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-warn-${Date.now()}`);
+    const tmpProject = path.join(os.tmpdir(), `sp-warn-proj-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(tmpProject, { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpProject, ".secretrc"),
+      "detection:\n  default_mode: warn\ncursor:\n  events:\n    beforeSubmitPrompt:\n      enabled: true\n      mode: warn\n",
+      "utf-8"
+    );
+    const env = { ...process.env, HOME: tmpHome };
+    try {
+      runCommand(["init"], { env });
+      runCommand(["install", "--project", tmpProject], { env });
+      const result = runCommand(
+        ["hook", "cursor", "beforeSubmitPrompt"],
+        { cwd: tmpProject, env, stdin: '{"prompt":"use GITHUB_PAT for auth"}' }
+      );
+      expect(result.exitCode).toBe(0);
+      const decision = JSON.parse(result.stdout);
+      expect(decision.continue).toBe(true);
+      expect(decision.user_message).toContain("Blocked by secret-protector");
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(tmpProject, { recursive: true, force: true });
+    }
+  });
+
   test("hook with invalid JSON on stdin exits with error", () => {
     const tmpHome = path.join(os.tmpdir(), `sp-hook-json-${Date.now()}`);
     const tmpProject = path.join(os.tmpdir(), `sp-hook-proj-${Date.now()}`);

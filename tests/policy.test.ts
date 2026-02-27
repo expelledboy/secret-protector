@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { runtimePaths } from "../src/paths.js";
 import {
   findProjectConfig,
+  getNested,
   loadEffectivePolicy,
   loadYamlDict,
   mergeValues,
@@ -109,6 +110,30 @@ describe("policy", () => {
     } finally {
       fs.rmSync(tmpHome, { recursive: true, force: true });
       fs.rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  test("loadEffectivePolicy merges detection and cursor sections from project .secretrc", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-det-${Date.now()}`);
+    const tmpProject = path.join(os.tmpdir(), `sp-det-proj-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(tmpProject, { recursive: true });
+    const paths = runtimePaths(tmpHome);
+    fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
+    saveYamlDict(paths.globalConfigPath, { version: 1, env: { block_exact: [] }, files: { block_globs: [] } });
+    fs.writeFileSync(
+      path.join(tmpProject, ".secretrc"),
+      "detection:\n  default_mode: warn\n  path_like_keys:\n    - fileUri\ncursor:\n  events:\n    beforeReadFile:\n      enabled: false\n",
+      "utf-8"
+    );
+    try {
+      const [policy] = loadEffectivePolicy(paths, tmpProject);
+      expect(getNested(policy, "detection", "default_mode")).toBe("warn");
+      expect((getNested(policy, "detection", "path_like_keys") as string[])).toContain("fileUri");
+      expect(getNested(policy, "cursor", "events", "beforeReadFile", "enabled")).toBe(false);
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(tmpProject, { recursive: true, force: true });
     }
   });
 

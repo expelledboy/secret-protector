@@ -3,7 +3,7 @@ import { minimatch } from "minimatch";
 import { eprint } from "./io.js";
 import { asList, getNested } from "./policy.js";
 
-const PATH_LIKE_KEYS = new Set([
+const BUILTIN_PATH_LIKE_KEYS = new Set([
   "path",
   "filepath",
   "file_path",
@@ -16,6 +16,31 @@ const PATH_LIKE_KEYS = new Set([
   "relative_workspace_path",
   "relativeworkspacepath",
 ]);
+
+const BUILTIN_FILE_READ_COMMANDS = new Set([
+  "cat",
+  "head",
+  "tail",
+  "less",
+  "more",
+  "grep",
+  "awk",
+  "sed",
+  "bat",
+  "rg",
+]);
+
+export function getPathLikeKeys(policy: Record<string, unknown>): Set<string> {
+  const configured = asList(getNested(policy, "detection", "path_like_keys") ?? []);
+  if (configured.length === 0) return BUILTIN_PATH_LIKE_KEYS;
+  return new Set([...BUILTIN_PATH_LIKE_KEYS, ...configured.map((k) => String(k).replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())]);
+}
+
+export function getFileReadCommands(policy: Record<string, unknown>): Set<string> {
+  const configured = asList(getNested(policy, "detection", "file_read_commands") ?? []);
+  if (configured.length === 0) return BUILTIN_FILE_READ_COMMANDS;
+  return new Set([...BUILTIN_FILE_READ_COMMANDS, ...configured.map((k) => String(k).toLowerCase())]);
+}
 
 export function collectStrings(value: unknown, out: string[]): void {
   if (typeof value === "string") {
@@ -37,21 +62,23 @@ export function collectStrings(value: unknown, out: string[]): void {
 export function collectPaths(
   value: unknown,
   out: string[],
-  keyHint?: string
+  keyHint?: string,
+  pathLikeKeys?: Set<string>
 ): void {
+  const keys = pathLikeKeys ?? BUILTIN_PATH_LIKE_KEYS;
   if (typeof value === "object" && value !== null) {
     if (Array.isArray(value)) {
-      for (const item of value) collectPaths(item, out, keyHint);
+      for (const item of value) collectPaths(item, out, keyHint, keys);
       return;
     }
     for (const [key, item] of Object.entries(value)) {
       const normalizedKey = String(key).replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
-      collectPaths(item, out, normalizedKey);
+      collectPaths(item, out, normalizedKey, keys);
     }
     return;
   }
   if (typeof value !== "string") return;
-  const isPathKey = keyHint ? PATH_LIKE_KEYS.has(keyHint) : false;
+  const isPathKey = keyHint ? keys.has(keyHint) : false;
   const seemsLikePath = value.includes("/") || value.includes("\\") || value.startsWith(".");
   if (isPathKey || seemsLikePath) out.push(value);
 }
@@ -74,19 +101,34 @@ function compileRegexes(patterns: string[]): RegExp[] {
   return compiled;
 }
 
+function getEnvReferencePatterns(policy: Record<string, unknown>): string[] {
+  return asList(getNested(policy, "detection", "env_reference_patterns") ?? []);
+}
+
 export function firstEnvMatch(
   text: string,
   envExact: string[],
-  envRegex: RegExp[]
+  envRegex: RegExp[],
+  envReferencePatterns?: string[]
 ): string | null {
   for (const name of envExact) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const checks = [
+    const checks: RegExp[] = [
       new RegExp(`\\$\\{?${escaped}\\}?`),
       new RegExp(`\\b${escaped}\\b\\s*=`),
       new RegExp(`\\bexport\\s+${escaped}\\b`),
       new RegExp(`\\b${escaped}\\b`),
     ];
+    if (envReferencePatterns?.length) {
+      for (const tpl of envReferencePatterns) {
+        try {
+          const pattern = tpl.replace(/\{NAME\}/g, escaped);
+          checks.push(new RegExp(pattern));
+        } catch {
+          // skip invalid pattern
+        }
+      }
+    }
     for (const re of checks) {
       if (re.test(text)) return name;
     }
@@ -98,28 +140,18 @@ export function firstEnvMatch(
   return null;
 }
 
-/** File-reading commands that may take file paths as arguments. */
-const FILE_READ_COMMANDS = new Set([
-  "cat",
-  "head",
-  "tail",
-  "less",
-  "more",
-  "grep",
-  "awk",
-  "sed",
-  "bat",
-  "rg",
-]);
-
 /**
  * Best-effort extraction of file paths from a shell command string.
  * Handles: cat .env, grep x .env.local, head -n 1 .env, rg pattern -- .env.
  * Limitations: subshells $(...), backticks, variable expansion in paths not parsed.
  */
-export function extractPathsFromCommand(command: string): string[] {
+export function extractPathsFromCommand(
+  command: string,
+  fileReadCommands?: Set<string>
+): string[] {
   if (typeof command !== "string" || !command.trim()) return [];
 
+  const commands = fileReadCommands ?? BUILTIN_FILE_READ_COMMANDS;
   const tokens = tokenizeCommand(command);
   const paths: string[] = [];
   let afterFileReadCommand = false;
@@ -132,7 +164,7 @@ export function extractPathsFromCommand(command: string): string[] {
       continue;
     }
 
-    if (FILE_READ_COMMANDS.has(t.toLowerCase())) {
+    if (commands.has(t.toLowerCase())) {
       afterFileReadCommand = true;
       skipUntilNextArg = false;
       continue;
@@ -263,16 +295,18 @@ export function detectSecretLeak(
   policy: Record<string, unknown>
 ): string | null {
   const [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
+  const pathLikeKeys = getPathLikeKeys(policy);
+  const envRefPatterns = getEnvReferencePatterns(policy);
 
   const strings: string[] = [];
   collectStrings(payload, strings);
   for (const text of strings) {
-    const envHit = firstEnvMatch(text, envExact, envRegex);
+    const envHit = firstEnvMatch(text, envExact, envRegex, envRefPatterns.length ? envRefPatterns : undefined);
     if (envHit) return `Detected secret environment variable reference: ${envHit}`;
   }
 
   const paths: string[] = [];
-  collectPaths(payload, paths);
+  collectPaths(payload, paths, undefined, pathLikeKeys);
   for (const p of paths) {
     const hit = pathMatchesWithAllow(p, fileGlobs, fileRegex, allowGlobs, allowRegex);
     if (hit) return `Detected sensitive file path pattern: ${hit}`;
@@ -285,8 +319,9 @@ export function detectSensitiveRead(
   policy: Record<string, unknown>
 ): string | null {
   const [, , fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
+  const pathLikeKeys = getPathLikeKeys(policy);
   const paths: string[] = [];
-  collectPaths(payload, paths);
+  collectPaths(payload, paths, undefined, pathLikeKeys);
   for (const p of paths) {
     const hit = pathMatchesWithAllow(p, fileGlobs, fileRegex, allowGlobs, allowRegex);
     if (hit) return `Read blocked for sensitive file pattern: ${hit}`;
@@ -299,19 +334,22 @@ export function detectSensitiveCommand(
   policy: Record<string, unknown>
 ): string | null {
   const [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
+  const pathLikeKeys = getPathLikeKeys(policy);
+  const fileReadCommands = getFileReadCommands(policy);
 
+  const envRefPatterns = getEnvReferencePatterns(policy);
   const strings: string[] = [];
   collectStrings(payload, strings);
   for (const text of strings) {
-    const envHit = firstEnvMatch(text, envExact, envRegex);
+    const envHit = firstEnvMatch(text, envExact, envRegex, envRefPatterns.length ? envRefPatterns : undefined);
     if (envHit) return `Command references secret environment variable: ${envHit}`;
   }
 
   const paths: string[] = [];
-  collectPaths(payload, paths);
+  collectPaths(payload, paths, undefined, pathLikeKeys);
 
   for (const text of strings) {
-    const cmdPaths = extractPathsFromCommand(text);
+    const cmdPaths = extractPathsFromCommand(text, fileReadCommands);
     paths.push(...cmdPaths);
   }
 

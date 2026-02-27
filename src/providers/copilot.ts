@@ -1,7 +1,16 @@
+import * as os from "node:os";
 import * as path from "node:path";
 import { writeText } from "../io.js";
 import type { RuntimePaths } from "../paths.js";
 import { asList, getNested } from "../policy.js";
+
+function resolveGlobalPath(paths: RuntimePaths, policy: Record<string, unknown>): string {
+  const override = getNested(policy, "copilot", "global_file");
+  if (override != null && String(override).trim()) {
+    return path.resolve(String(override).replace(/^~/, os.homedir()));
+  }
+  return paths.copilotGlobalExportPath;
+}
 
 export function renderExclusions(
   policy: Record<string, unknown>,
@@ -44,9 +53,11 @@ export function installArtifacts(
 ): string[] {
   const out: string[] = [];
   const content = renderExclusions(policy);
-  writeText(paths.copilotGlobalExportPath, content);
-  out.push(paths.copilotGlobalExportPath);
-  if (projectDir) {
+  const globalPath = resolveGlobalPath(paths, policy);
+  writeText(globalPath, content);
+  out.push(globalPath);
+  const writeRepo = getNested(policy, "copilot", "write_repo_file");
+  if (projectDir && writeRepo !== false) {
     const repoFile = String(
       getNested(policy, "copilot", "repo_file") ?? ".github/copilot-content-exclusions.txt"
     );

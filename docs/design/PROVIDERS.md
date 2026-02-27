@@ -12,14 +12,16 @@
   "hooks": {
     "beforeSubmitPrompt": [{ "type": "command", "command": "...", "timeout": 10 }],
     "beforeReadFile": [...],
-    "beforeTabFileRead": [...]
+    "beforeTabFileRead": [...],
+    "beforeShellExecution": [...],
+    "preToolUse": [...]
   }
 }
 ```
 
 **Command:** `$HOME/.config/secret-protector/bin/secret-protector-hook cursor <event>`
 
-**Events:** beforeSubmitPrompt, beforeReadFile, beforeTabFileRead. Optionally: beforeShellExecution, preToolUse.
+**Events:** beforeSubmitPrompt, beforeReadFile, beforeTabFileRead, beforeShellExecution, preToolUse (all five by default; disable via `cursor.events.<event>.enabled: false`).
 
 **Idempotency:** Remove existing secret-protector entries for each event before appending. Marker: `secret-protector-hook cursor <event>`.
 
@@ -55,8 +57,8 @@
 
 **Artifact paths:**
 
-- Global: `~/.config/secret-protector/copilot-content-exclusions.txt`
-- Repo: `<project_dir>/.github/copilot-content-exclusions.txt` (or policy `copilot.repo_file`)
+- Global: `~/.config/secret-protector/copilot-content-exclusions.txt` (or policy `copilot.global_file`)
+- Repo: `<project_dir>/.github/copilot-content-exclusions.txt` (or policy `copilot.repo_file`; set `copilot.write_repo_file: false` to skip)
 
 **Format:** Section headers `[glob_patterns]`, `[regex_patterns]`, then sorted unique patterns. GitHub expects fnmatch-style; this file is a source artifact for manual copy into GitHub settings.
 

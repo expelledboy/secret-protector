@@ -72,8 +72,13 @@ export function cmdInstall(
       outputs.push("Would upsert Codex config: " + paths.codexConfigPath);
     }
     if (providerEnabled(policy, "copilot") && (!args.only || args.only.includes("copilot"))) {
-      outputs.push("Would write Copilot artifact: " + paths.copilotGlobalExportPath);
-      if (projectDir) {
+      const globalFile = getNested(policy, "copilot", "global_file");
+      const globalPath =
+        globalFile != null && String(globalFile).trim()
+          ? path.resolve(String(globalFile).replace(/^~/, os.homedir()))
+          : paths.copilotGlobalExportPath;
+      outputs.push("Would write Copilot artifact: " + globalPath);
+      if (projectDir && getNested(policy, "copilot", "write_repo_file") !== false) {
         const repoFile = String(getNested(policy, "copilot", "repo_file") ?? ".github/copilot-content-exclusions.txt");
         outputs.push("Would write Copilot repo artifact: " + path.join(projectDir, repoFile));
       }
@@ -94,7 +99,7 @@ export function cmdInstall(
 
   const outputs: string[] = [];
   if (shouldInstall("cursor")) {
-    const p = upsertCursorHooks(paths, (pr, ev) => hookCommandFor(paths, pr, ev));
+    const p = upsertCursorHooks(paths, policy, (pr, ev) => hookCommandFor(paths, pr, ev));
     outputs.push(`Cursor hooks upserted: ${p}`);
   }
   if (shouldInstall("opencode")) {

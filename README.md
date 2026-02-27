@@ -50,6 +50,47 @@ files:
 
 ---
 
+## Configuration Reference
+
+Policy is defined in `~/.config/secret-protector/config.yaml` (global) and `.secretrc` (project override). Lists merge; scalars override. The merged policy controls what we block and how.
+
+### What we detect
+
+| Section | Purpose |
+|--------|---------|
+| `env` | Block/allow env vars by exact name or regex |
+| `files` | Block/allow file paths (globs and regex; allow wins over block) |
+| `detection.path_like_keys` | Extra JSON keys treated as paths (extends built-ins) |
+| `detection.file_read_commands` | Extra commands treated as file readers (e.g. `fd`) |
+| `detection.env_reference_patterns` | Extra regex patterns for env detection (`{NAME}` placeholder) |
+
+### How we react (block / warn / log)
+
+Each provider and event has a mode:
+
+- **block** — Deny the operation and show a message (default).
+- **warn** — Allow but attach a warning message (when the provider supports it).
+- **log** — Allow silently; detection is logged to stderr only.
+
+| Section | Purpose |
+|--------|---------|
+| `detection.default_mode` | Default mode when no per-event override exists |
+| `cursor.events.<event>.enabled` | Enable/disable each Cursor hook (`true` by default) |
+| `cursor.events.<event>.mode` | Per-event mode override (beforeSubmitPrompt, beforeReadFile, beforeTabFileRead, beforeShellExecution, preToolUse) |
+| `cursor.timeout_seconds` | Hook timeout (default: 10) |
+| `opencode.tool_execute_before.mode` | Mode for OpenCode tool execution checks |
+| `copilot.global_file` | Override global Copilot artifact path |
+| `copilot.write_repo_file` | Set `false` to skip writing `.github/copilot-content-exclusions.txt` |
+
+### Bypass tags and upgrading
+
+- **`bypass_tags_enabled`**, **`bypass_tags`** — Customize prompt bypass tags. Omit individual fields to keep defaults (e.g. only `allow_secret` customizes secret tags; `allow_all` stays `["allow-all"]`).
+- **Upgrading:** Existing configs work unchanged. New sections are optional. Add `detection.default_mode: warn` to observe before blocking, or `cursor.events.<event>.enabled: false` to disable specific hooks.
+
+Full reference: [docs/design/POLICY_SCHEMA.md](docs/design/POLICY_SCHEMA.md). Commented example: [docs/example.secretrc](docs/example.secretrc).
+
+---
+
 ## Commands
 
 ### `init` — Create the policy file
@@ -101,7 +142,7 @@ When `bypass_tags_enabled` is true (default), add to your prompt:
 - `[allow-all]` — Skip all checks
 - `[allow-secret]` or `[allow-pii]` — Skip env/file detection for this prompt
 
-File reads and shell commands always run full detection.
+Customize tag names via `bypass_tags` in config; omit fields to keep built-in defaults. File reads and shell commands always run full detection.
 
 ---
 
