@@ -58,8 +58,8 @@ describe("detector", () => {
   test("detectSecretLeak matches env.regex", () => {
     const policyWithRegex = {
       ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
-      env: { exact: [], regex: ["(?i)MY_[A-Z0-9_]*_TOKEN"], allow_exact: [], allow_regex: [] },
-      files: { globs: [], regex: [] },
+      env: { block_exact: [], block_regex: ["(?i)MY_[A-Z0-9_]*_TOKEN"], allow_exact: [], allow_regex: [] },
+      files: { block_globs: [], block_regex: [] },
     } as Record<string, unknown>;
     const match = detectSecretLeak({ prompt: "check MY_CUSTOM_TOKEN" }, policyWithRegex);
     expect(match).not.toBeNull();
@@ -71,8 +71,8 @@ describe("detector", () => {
   test("policy with invalid regex does not throw", () => {
     const policyWithBadRegex = {
       ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
-      env: { exact: ["GITHUB_PAT"], regex: ["[invalid("], allow_exact: [], allow_regex: [] },
-      files: { globs: [".env"], regex: [] },
+      env: { block_exact: ["GITHUB_PAT"], block_regex: ["[invalid("], allow_exact: [], allow_regex: [] },
+      files: { block_globs: [".env"], block_regex: [] },
     } as Record<string, unknown>;
     const reason = detectSecretLeak({ prompt: "use GITHUB_PAT" }, policyWithBadRegex);
     expect(reason).not.toBeNull();
@@ -82,8 +82,8 @@ describe("detector", () => {
   test("policy with invalid glob does not throw", () => {
     const policyWithBadGlob = {
       ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
-      env: { exact: [], regex: [], allow_exact: [], allow_regex: [] },
-      files: { globs: [".env", "[invalid"], regex: [] },
+      env: { block_exact: [], block_regex: [], allow_exact: [], allow_regex: [] },
+      files: { block_globs: [".env", "[invalid"], block_regex: [] },
     } as Record<string, unknown>;
     const reason = detectSensitiveRead({ file_path: ".env" }, policyWithBadGlob);
     expect(reason).not.toBeNull();
@@ -103,8 +103,8 @@ describe("detector", () => {
     const policyWithAllowRegex = {
       ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
       files: {
-        globs: [".env", ".env.*", "**/.env*"],
-        regex: ["(?i)(^|/)secrets?(/|$)"],
+        block_globs: [".env", ".env.*", "**/.env*"],
+        block_regex: ["(?i)(^|/)secrets?(/|$)"],
         allow_globs: [],
         allow_regex: ["(?i)\\.env\\.example$", "(?i)docs/secrets"],
       },

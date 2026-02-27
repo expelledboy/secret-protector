@@ -28,22 +28,22 @@ describe("policy", () => {
       const paths = runtimePaths(tmpHome);
       fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
       saveYamlDict(paths.globalConfigPath, {
-        env: { exact: ["GLOBAL_TOKEN"] },
+        env: { block_exact: ["GLOBAL_TOKEN"] },
         providers: { copilot: false },
       });
       fs.writeFileSync(
         path.join(tmpProject, ".secretrc"),
-        "env:\n  exact:\n    - PROJECT_TOKEN\nfiles:\n  globs:\n    - '**/*.local.env'\n",
+        "env:\n  block_exact:\n    - PROJECT_TOKEN\nfiles:\n  block_globs:\n    - '**/*.local.env'\n",
         "utf-8"
       );
       const [policy, projectCfgPath] = loadEffectivePolicy(paths, tmpProject);
       expect(projectCfgPath).not.toBeNull();
-      const envExact = new Set((policy.env as Record<string, string[]>).exact);
+      const envExact = new Set((policy.env as Record<string, string[]>).block_exact);
       expect(envExact.has("GLOBAL_TOKEN")).toBe(true);
       expect(envExact.has("PROJECT_TOKEN")).toBe(true);
       expect(envExact.has("GITHUB_PAT")).toBe(true);
       expect((policy.providers as Record<string, boolean>).copilot).toBe(false);
-      expect((policy.files as Record<string, string[]>).globs).toContain("**/*.local.env");
+      expect((policy.files as Record<string, string[]>).block_globs).toContain("**/*.local.env");
     } finally {
       fs.rmSync(tmpHome, { recursive: true, force: true });
       fs.rmSync(tmpProject, { recursive: true, force: true });
@@ -82,7 +82,7 @@ describe("policy", () => {
     const parent = path.join(tmpDir, "parent");
     const grandchild = path.join(parent, "child", "grandchild");
     fs.mkdirSync(grandchild, { recursive: true });
-    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  exact: [WALKUP]\n", "utf-8");
+    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  block_exact: [WALKUP]\n", "utf-8");
     try {
       const found = findProjectConfig(grandchild);
       expect(found).toBe(path.join(parent, ".secretrc"));
@@ -97,14 +97,14 @@ describe("policy", () => {
     const child = path.join(parent, "child");
     fs.mkdirSync(tmpHome, { recursive: true });
     fs.mkdirSync(child, { recursive: true });
-    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  exact: [ANCESTOR_TOKEN]\n", "utf-8");
+    fs.writeFileSync(path.join(parent, ".secretrc"), "env:\n  block_exact: [ANCESTOR_TOKEN]\n", "utf-8");
     const paths = runtimePaths(tmpHome);
     fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
-    saveYamlDict(paths.globalConfigPath, { version: 1, env: { exact: [] }, files: { globs: [] } });
+    saveYamlDict(paths.globalConfigPath, { version: 1, env: { block_exact: [] }, files: { block_globs: [] } });
     try {
       const [policy, projectCfgPath] = loadEffectivePolicy(paths, child);
       expect(projectCfgPath).toBe(path.join(parent, ".secretrc"));
-      const envExact = new Set((policy.env as Record<string, string[]>).exact);
+      const envExact = new Set((policy.env as Record<string, string[]>).block_exact);
       expect(envExact.has("ANCESTOR_TOKEN")).toBe(true);
     } finally {
       fs.rmSync(tmpHome, { recursive: true, force: true });
@@ -119,7 +119,7 @@ describe("policy", () => {
     fs.mkdirSync(tmpProject, { recursive: true });
     const paths = runtimePaths(tmpHome);
     fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
-    saveYamlDict(paths.globalConfigPath, { version: 1, env: { exact: [] }, files: { globs: [".env"], allow_globs: [".env.example"] } });
+    saveYamlDict(paths.globalConfigPath, { version: 1, env: { block_exact: [] }, files: { block_globs: [".env"], allow_globs: [".env.example"] } });
     fs.writeFileSync(
       path.join(tmpProject, ".secretrc"),
       "files:\n  allow_globs:\n    - 'config/local.env.example'\n",

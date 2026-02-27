@@ -47,7 +47,7 @@
 2. Strip existing `[shell_environment_policy]` table
 3. Append new managed block with: `inherit = "core"`, `include_only`, `exclude`
 
-**Env mapping:** Policy `env.allow_exact` + `env.allow_regex` → `include_only`. Policy `env.exact` + `env.regex` → `exclude`.
+**Env mapping:** Policy `env.allow_exact` + `env.allow_regex` → `include_only`. Policy `env.block_exact` + `env.block_regex` → `exclude`.
 
 ---
 

@@ -5,22 +5,22 @@
 ```yaml
 version: 1
 env:
-  exact: [string]        # Env var names to block (e.g. GITHUB_PAT)
-  regex: [string]        # Regex for env names (e.g. (?i)^.*TOKEN$)
-  allow_exact: [string]  # Env names to allow (Codex whitelist)
-  allow_regex: [string]  # Regex for allowed env (Codex)
+  block_exact: [string]   # Env var names to block (e.g. GITHUB_PAT)
+  block_regex: [string]   # Regex for env names to block (e.g. (?i)^.*TOKEN$)
+  allow_exact: [string]   # Env names to always allow (Codex whitelist)
+  allow_regex: [string]   # Regex for env names to always allow (Codex)
 files:
-  globs: [string]        # Block (exclude) glob patterns (e.g. .env, **/.env.*)
-  regex: [string]        # Block (exclude) path regex (e.g. (?i)(^|/)secrets?(/|$)
-  allow_globs: [string]  # Allow (include) glob patterns — matches never blocked
-  allow_regex: [string]  # Allow (include) path regex — matches never blocked
+  block_globs: [string]   # Block (exclude) glob patterns (e.g. .env, **/.env.*)
+  block_regex: [string]   # Block (exclude) path regex (e.g. (?i)(^|/)secrets?(/|$))
+  allow_globs: [string]   # Allow (include) glob patterns — matches never blocked
+  allow_regex: [string]   # Allow (include) path regex — matches never blocked
 providers:
   cursor: bool
   opencode: bool
   codex: bool
   copilot: bool
 copilot:
-  repo_file: string      # e.g. .github/copilot-content-exclusions.txt
+  repo_file: string       # e.g. .github/copilot-content-exclusions.txt
 bypass_tags_enabled: bool  # If true, allow [allow-all], [allow-secret], [allow-pii] in prompt
 ```
 
@@ -39,9 +39,9 @@ When `bypass_tags_enabled` is true (default), users can add tags to prompts to i
 Paths are evaluated in order: **allow first**, then block (like .gitignore where `!` negations override).
 
 - If a path matches any `allow_globs` or `allow_regex` → pass (never blocked).
-- Else if it matches any `globs` or `regex` → block.
+- Else if it matches any `block_globs` or `block_regex` → block.
 
-Default `allow_globs` includes `.env.example`, `.env.template`, `.env.sample`, `.env.schema` so template files can be read. Add more in `.secretrc` per project.
+Default `files.allow_globs` includes `.env.example`, `.env.template`, `.env.sample`, `.env.schema` so template files can be read. Add more in `.secretrc` per project.
 
 ## Merge Rules
 

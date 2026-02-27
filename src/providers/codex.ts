@@ -48,8 +48,8 @@ function tomlArray(values: string[]): string {
 function buildEnvPolicy(
   policy: Record<string, unknown>
 ): [string[], string[]] {
-  const envExact = asList(getNested(policy, "env", "exact") ?? []);
-  const envRegex = asList(getNested(policy, "env", "regex") ?? []);
+  const envExact = asList(getNested(policy, "env", "block_exact") ?? []);
+  const envRegex = asList(getNested(policy, "env", "block_regex") ?? []);
   const allowExact = asList(getNested(policy, "env", "allow_exact") ?? []);
   const allowRegex = asList(getNested(policy, "env", "allow_regex") ?? []);
 

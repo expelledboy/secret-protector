@@ -95,7 +95,7 @@ secret-protector writes a **source-of-truth file** that users must **manually co
 ...
 ```
 
-**Conversion:** GitHub repo settings use fnmatch. Our `files.globs` map directly. Our `files.regex` patterns may need manual adaptation—GitHub uses fnmatch, not full regex. For regex-style patterns, use the closest fnmatch equivalent (e.g. `*secrets*` for `(^|/)secrets?(/|$)`).
+**Conversion:** GitHub repo settings use fnmatch. Our `files.block_globs` map directly. Our `files.block_regex` patterns may need manual adaptation—GitHub uses fnmatch, not full regex. For regex-style patterns, use the closest fnmatch equivalent (e.g. `*secrets*` for `(^|/)secrets?(/|$)`).
 
 ---
 

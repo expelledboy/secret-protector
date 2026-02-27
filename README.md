@@ -42,9 +42,9 @@ Drop a `.secretrc` in your repo. Lists merge with global; scalars override. Your
 ```yaml
 # .secretrc
 env:
-  exact: [STRIPE_SECRET_KEY]
+  block_exact: [STRIPE_SECRET_KEY]
 files:
-  globs: ['**/*production*.tfvars']
+  block_globs: ['**/*production*.tfvars']
   allow_globs: ['config/env.example.yml']
 ```
 

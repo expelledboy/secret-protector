@@ -41,7 +41,7 @@ Investigation of alternatives and user feedback to validate secret-protector's a
 
 **Root cause:** Broad substring match, no allowlist, no configurability.
 
-**Validation:** secret-protector uses basename-aware globs (`**/.env.*`) and regex—better than substring. As of the file allowlist feature, default `files.allow_globs` includes `.env.example`, `.env.template`, `.env.sample`, `.env.schema`. Users can add more in `.secretrc`. Allow takes precedence over block (gitignore-style).
+**Validation:** secret-protector uses basename-aware globs (`**/.env.*`) and regex—better than substring. As of the file allowlist feature, default `files.allow_globs` includes `.env.example`, `.env.template`, `.env.sample`, `.env.schema`. Users can add more in `.secretrc`. `files.allow_*` takes precedence over `files.block_*` (gitignore-style).
 
 ---
 
@@ -139,7 +139,7 @@ Investigation of alternatives and user feedback to validate secret-protector's a
 ## Recommendations
 
 1. **files.allow_globs / files.allow_regex — implemented**  
-   Allow patterns take precedence over block. Default includes `.env.example`, `.env.template`, etc. Users extend via `.secretrc`.
+   Allow patterns take precedence over `files.block_globs` / `files.block_regex`. Default includes `.env.example`, `.env.template`, etc. Users extend via `.secretrc`.
 
 2. **Consider post-mode**  
    agent-security's "block on pre, warn on post" could reduce false-negative anxiety. Lower priority.

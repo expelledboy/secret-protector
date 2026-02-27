@@ -179,7 +179,7 @@ Hooks from all locations are merged; higher-priority hooks run first. Any hook c
 | Event | Detector | What is checked |
 |-------|----------|-----------------|
 | beforeSubmitPrompt | `detectSecretLeak` | Env refs in `prompt`; sensitive paths in `attachments` |
-| beforeReadFile | `detectSensitiveRead` | `file_path` against policy `files.globs` and `files.regex` |
+| beforeReadFile | `detectSensitiveRead` | `file_path` against policy `files.block_globs` and `files.block_regex` |
 | beforeTabFileRead | `detectSensitiveRead` | Same as beforeReadFile |
 | beforeShellExecution | `detectSensitiveCommand` | `command` for env refs; paths in command |
 | preToolUse | `detectSensitiveCommand` | Tool args for env refs and sensitive paths |

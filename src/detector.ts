@@ -249,10 +249,10 @@ export function pathMatchesWithAllow(
 export function policyMatchers(
   policy: Record<string, unknown>
 ): [string[], RegExp[], string[], RegExp[], string[], RegExp[]] {
-  const envExact = asList(getNested(policy, "env", "exact") ?? []).filter((s) => s.trim());
-  const envRegex = compileRegexes(asList(getNested(policy, "env", "regex") ?? []));
-  const fileGlobs = asList(getNested(policy, "files", "globs") ?? []).filter((s) => s.trim());
-  const fileRegex = compileRegexes(asList(getNested(policy, "files", "regex") ?? []));
+  const envExact = asList(getNested(policy, "env", "block_exact") ?? []).filter((s) => s.trim());
+  const envRegex = compileRegexes(asList(getNested(policy, "env", "block_regex") ?? []));
+  const fileGlobs = asList(getNested(policy, "files", "block_globs") ?? []).filter((s) => s.trim());
+  const fileRegex = compileRegexes(asList(getNested(policy, "files", "block_regex") ?? []));
   const allowGlobs = asList(getNested(policy, "files", "allow_globs") ?? []).filter((s) => s.trim());
   const allowRegex = compileRegexes(asList(getNested(policy, "files", "allow_regex") ?? []));
   return [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex];

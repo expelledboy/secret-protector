@@ -46,8 +46,8 @@ Controls which environment variables are passed to subprocesses (e.g. when the a
 |--------|--------------|
 | `env.allow_exact` | `include_only`: `^NAME$` for each |
 | `env.allow_regex` | `include_only`: patterns as-is |
-| `env.exact` | `exclude`: `^NAME$` for each |
-| `env.regex` | `exclude`: patterns as-is |
+| `env.block_exact` | `exclude`: `^NAME$` for each |
+| `env.block_regex` | `exclude`: patterns as-is |
 
 **Logic:** secret-protector sets `inherit = "core"` and builds:
 

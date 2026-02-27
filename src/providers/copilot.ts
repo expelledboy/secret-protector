@@ -7,8 +7,8 @@ export function renderExclusions(
   policy: Record<string, unknown>,
   format: "default" | "github" = "default"
 ): string {
-  const globs = [...new Set(asList(getNested(policy, "files", "globs") ?? []))].sort();
-  const regex = [...new Set(asList(getNested(policy, "files", "regex") ?? []))].sort();
+  const globs = [...new Set(asList(getNested(policy, "files", "block_globs") ?? []))].sort();
+  const regex = [...new Set(asList(getNested(policy, "files", "block_regex") ?? []))].sort();
 
   if (format === "github") {
     const lines = [

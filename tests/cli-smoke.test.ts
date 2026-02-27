@@ -48,7 +48,7 @@ describe("cli smoke", () => {
     const configPath = path.join(tmpHome, ".config", "secret-protector", "config.yaml");
     try {
       runCommand(["init"], { env });
-      fs.writeFileSync(configPath, "version: 1\nenv:\n  exact: [CUSTOM_ONLY]\n", "utf-8");
+      fs.writeFileSync(configPath, "version: 1\nenv:\n  block_exact: [CUSTOM_ONLY]\n", "utf-8");
       runCommand(["init", "--force"], { env });
       const content = fs.readFileSync(configPath, "utf-8");
       expect(content).toContain("GITHUB_PAT");
@@ -71,7 +71,7 @@ describe("cli smoke", () => {
     fs.mkdirSync(tmpProject, { recursive: true });
     fs.writeFileSync(
       path.join(tmpProject, ".secretrc"),
-      "env:\n  exact:\n    - PROJECT_SECRET_TOKEN\n",
+      "env:\n  block_exact:\n    - PROJECT_SECRET_TOKEN\n",
       "utf-8"
     );
     const env = { ...process.env, HOME: tmpHome };
@@ -182,7 +182,7 @@ describe("cli smoke", () => {
     fs.mkdirSync(path.join(tmpHome, ".config", "secret-protector"), { recursive: true });
     fs.writeFileSync(
       path.join(tmpHome, ".config", "secret-protector", "config.yaml"),
-      "version: 1\nproviders:\n  cursor: false\n  opencode: true\n  codex: true\n  copilot: true\nenv:\n  exact: [GITHUB_PAT]\nfiles:\n  globs: [.env]\n",
+      "version: 1\nproviders:\n  cursor: false\n  opencode: true\n  codex: true\n  copilot: true\nenv:\n  block_exact: [GITHUB_PAT]\nfiles:\n  block_globs: [.env]\n",
       "utf-8"
     );
     const env = { ...process.env, HOME: tmpHome };
@@ -252,7 +252,7 @@ describe("cli smoke", () => {
     fs.mkdirSync(tmpProject, { recursive: true });
     fs.writeFileSync(
       path.join(tmpProject, ".secretrc"),
-      "files:\n  globs:\n    - '**/custom-secrets.json'\n",
+      "files:\n  block_globs:\n    - '**/custom-secrets.json'\n",
       "utf-8"
     );
     const env = { ...process.env, HOME: tmpHome };

@@ -4,7 +4,7 @@ export const MANAGED_BLOCK_END = "# <<< secret-protector end";
 export const DEFAULT_POLICY: Record<string, unknown> = {
   version: 1,
   env: {
-    exact: [
+    block_exact: [
       "GITHUB_PAT",
       "OPENAI_API_KEY",
       "ANTHROPIC_API_KEY",
@@ -17,7 +17,7 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
       "NPM_TOKEN",
       "PYPI_TOKEN",
     ],
-    regex: [
+    block_regex: [
       "(?i)^[A-Z0-9_]*(TOKEN|SECRET|PASSWORD|PASS|API_KEY|PRIVATE_KEY|PAT)$",
     ],
     allow_exact: [
@@ -39,7 +39,7 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
     allow_regex: ["^LC_.*$"],
   },
   files: {
-    globs: [
+    block_globs: [
       ".env",
       ".env.*",
       "**/.env",
@@ -56,7 +56,7 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
       "**/*secrets*.yaml",
       "**/*secrets*.json",
     ],
-    regex: [
+    block_regex: [
       "(?i)(^|/)(credentials?|secrets?|tokens?)(/|\\\\|$)",
       "(?i)(^|/)(\\.aws|\\.ssh|\\.gnupg)(/|$)",
     ],
