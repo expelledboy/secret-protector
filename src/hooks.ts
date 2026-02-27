@@ -50,14 +50,32 @@ function getBypassTags(policy: Record<string, unknown>): {
   };
 }
 
-function hasBypassTag(prompt: string, tags: string[]): boolean {
-  if (typeof prompt !== "string") return false;
-  const lower = prompt.toLowerCase();
+function hasBypassTag(text: string, tags: string[]): boolean {
+  if (typeof text !== "string") return false;
+  const lower = text.toLowerCase();
   for (const tag of tags) {
     const needle = `[${tag}]`.toLowerCase();
     if (lower.includes(needle)) return true;
   }
   return false;
+}
+
+/** Gather user prompt text from multiple possible payload locations (Cursor/Claude variants). */
+function getPromptTextForBypass(payload: unknown): string {
+  if (typeof payload !== "object" || !payload) return "";
+  const p = payload as Record<string, unknown>;
+  const parts: string[] = [];
+  for (const key of ["prompt", "input", "text", "content"]) {
+    const v = p[key];
+    if (typeof v === "string" && v.trim()) parts.push(v);
+  }
+  const msgs = p.messages;
+  if (Array.isArray(msgs) && msgs.length > 0) {
+    const last = msgs[msgs.length - 1] as Record<string, unknown> | undefined;
+    const content = last?.content;
+    if (typeof content === "string" && content.trim()) parts.push(content);
+  }
+  return parts.join("\n");
 }
 
 export function cursorDecision(
@@ -68,15 +86,12 @@ export function cursorDecision(
   if (event === "beforeSubmitPrompt") {
     if (!isCursorEventEnabled(policy, event)) return { continue: true };
     const bypassEnabled = getNested(policy, "bypass_tags_enabled") !== false;
-    const prompt =
-      typeof payload === "object" && payload && "prompt" in payload
-        ? String((payload as Record<string, unknown>).prompt ?? "")
-        : "";
+    const promptText = getPromptTextForBypass(payload);
 
     if (bypassEnabled) {
       const { allowAll, allowSecret } = getBypassTags(policy);
-      if (hasBypassTag(prompt, allowAll)) return { continue: true };
-      if (hasBypassTag(prompt, allowSecret)) return { continue: true };
+      if (hasBypassTag(promptText, allowAll)) return { continue: true };
+      if (hasBypassTag(promptText, allowSecret)) return { continue: true };
     }
 
     const reason = detectSecretLeak(payload, policy);

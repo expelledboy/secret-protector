@@ -1,5 +1,8 @@
 # secret-protector
 
+[![Test](https://github.com/expelledboy/secret-protector/actions/workflows/test.yml/badge.svg)](https://github.com/expelledboy/secret-protector/actions/workflows/test.yml)
+[![npm](https://img.shields.io/npm/v/secret-protector)](https://www.npmjs.com/package/secret-protector)
+
 **Secrets stay local. AI stays useful.**
 
 You're about to paste a prompt that mentions `$GITHUB_PAT`. Or read `.env` into context. Or run `cat credentials.json` in a shell.
