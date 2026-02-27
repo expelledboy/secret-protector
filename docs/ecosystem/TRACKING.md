@@ -84,4 +84,4 @@ Repos to monitor for improvements to incorporate into secret-protector.
 
 ## Last Reviewed
 
-(Update when syncing: e.g. 2025-02-26)
+2026-02-27 (ecosystem validation; see [VALIDATION.md](VALIDATION.md))

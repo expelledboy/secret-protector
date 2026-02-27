@@ -60,6 +60,17 @@ export const DEFAULT_POLICY: Record<string, unknown> = {
       "(?i)(^|/)(credentials?|secrets?|tokens?)(/|\\\\|$)",
       "(?i)(^|/)(\\.aws|\\.ssh|\\.gnupg)(/|$)",
     ],
+    allow_globs: [
+      ".env.example",
+      ".env.template",
+      ".env.sample",
+      ".env.schema",
+      "**/.env.example",
+      "**/.env.template",
+      "**/.env.sample",
+      "**/.env.schema",
+    ],
+    allow_regex: [],
   },
   providers: {
     cursor: true,

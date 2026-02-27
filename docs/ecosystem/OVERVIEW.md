@@ -128,8 +128,9 @@ Real-time scanning; highlight secrets in the IDE but do not block agent actions.
 | agent-security | Post-mode warnings (block on pre, warn on post) |
 | envsitter-guard | Document as alternative for OpenCode .env-only use; safe-tool pattern for key inspection |
 | claude-redact-env | Bash command path extraction (detect `cat .env` in command string) |
-| sensitive-canary | Opt-in bypass tags (e.g. `[allow-secret]` in prompt) |
-| Cursor provider | Add `beforeShellExecution` and `preToolUse` (currently in hooks.ts but not installed by cursor provider) |
+| sensitive-canary | Opt-in bypass tags (e.g. `[allow-secret]` in prompt) — **implemented** |
+| OpenCode #4969, envsitter-guard | **files.allow_globs / files.allow_regex** — implemented; allow `.env.example`, `.env.template`, etc.; users demand "control over what gets blacklisted" |
+| Cursor provider | Add `beforeShellExecution` and `preToolUse` (currently in hooks.ts; Cursor provider installs all five events) |
 
 ---
 

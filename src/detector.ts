@@ -215,21 +215,54 @@ export function pathMatches(
   return null;
 }
 
+function pathMatchesAllow(
+  p: string,
+  allowGlobs: string[],
+  allowRegex: RegExp[]
+): boolean {
+  const normalized = normalizePath(p);
+  const basename = path.basename(normalized);
+  for (const glob of allowGlobs) {
+    try {
+      if (minimatch(normalized, glob) || minimatch(basename, glob)) return true;
+    } catch {
+      // skip invalid glob
+    }
+  }
+  for (const re of allowRegex) {
+    if (re.test(normalized)) return true;
+  }
+  return false;
+}
+
+export function pathMatchesWithAllow(
+  p: string,
+  blockGlobs: string[],
+  blockRegex: RegExp[],
+  allowGlobs: string[],
+  allowRegex: RegExp[]
+): string | null {
+  if (pathMatchesAllow(p, allowGlobs, allowRegex)) return null;
+  return pathMatches(p, blockGlobs, blockRegex);
+}
+
 export function policyMatchers(
   policy: Record<string, unknown>
-): [string[], RegExp[], string[], RegExp[]] {
+): [string[], RegExp[], string[], RegExp[], string[], RegExp[]] {
   const envExact = asList(getNested(policy, "env", "exact") ?? []).filter((s) => s.trim());
   const envRegex = compileRegexes(asList(getNested(policy, "env", "regex") ?? []));
   const fileGlobs = asList(getNested(policy, "files", "globs") ?? []).filter((s) => s.trim());
   const fileRegex = compileRegexes(asList(getNested(policy, "files", "regex") ?? []));
-  return [envExact, envRegex, fileGlobs, fileRegex];
+  const allowGlobs = asList(getNested(policy, "files", "allow_globs") ?? []).filter((s) => s.trim());
+  const allowRegex = compileRegexes(asList(getNested(policy, "files", "allow_regex") ?? []));
+  return [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex];
 }
 
 export function detectSecretLeak(
   payload: unknown,
   policy: Record<string, unknown>
 ): string | null {
-  const [envExact, envRegex, fileGlobs, fileRegex] = policyMatchers(policy);
+  const [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
 
   const strings: string[] = [];
   collectStrings(payload, strings);
@@ -241,7 +274,7 @@ export function detectSecretLeak(
   const paths: string[] = [];
   collectPaths(payload, paths);
   for (const p of paths) {
-    const hit = pathMatches(p, fileGlobs, fileRegex);
+    const hit = pathMatchesWithAllow(p, fileGlobs, fileRegex, allowGlobs, allowRegex);
     if (hit) return `Detected sensitive file path pattern: ${hit}`;
   }
   return null;
@@ -251,11 +284,11 @@ export function detectSensitiveRead(
   payload: unknown,
   policy: Record<string, unknown>
 ): string | null {
-  const [, , fileGlobs, fileRegex] = policyMatchers(policy);
+  const [, , fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
   const paths: string[] = [];
   collectPaths(payload, paths);
   for (const p of paths) {
-    const hit = pathMatches(p, fileGlobs, fileRegex);
+    const hit = pathMatchesWithAllow(p, fileGlobs, fileRegex, allowGlobs, allowRegex);
     if (hit) return `Read blocked for sensitive file pattern: ${hit}`;
   }
   return null;
@@ -265,7 +298,7 @@ export function detectSensitiveCommand(
   payload: unknown,
   policy: Record<string, unknown>
 ): string | null {
-  const [envExact, envRegex, fileGlobs, fileRegex] = policyMatchers(policy);
+  const [envExact, envRegex, fileGlobs, fileRegex, allowGlobs, allowRegex] = policyMatchers(policy);
 
   const strings: string[] = [];
   collectStrings(payload, strings);
@@ -283,7 +316,7 @@ export function detectSensitiveCommand(
   }
 
   for (const p of paths) {
-    const hit = pathMatches(p, fileGlobs, fileRegex);
+    const hit = pathMatchesWithAllow(p, fileGlobs, fileRegex, allowGlobs, allowRegex);
     if (hit) return `Command references sensitive file path pattern: ${hit}`;
   }
   return null;

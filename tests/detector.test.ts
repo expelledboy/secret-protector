@@ -89,4 +89,48 @@ describe("detector", () => {
     expect(reason).not.toBeNull();
     expect(reason).toContain("sensitive file pattern");
   });
+
+  test("allow_globs permits path that matches block pattern", () => {
+    const reason = detectSensitiveRead({ file_path: ".env.example" }, policy);
+    expect(reason).toBeNull();
+    const reasonTemplate = detectSensitiveRead({ file_path: "config/.env.template" }, policy);
+    expect(reasonTemplate).toBeNull();
+    const reasonLocal = detectSensitiveRead({ file_path: ".env.local" }, policy);
+    expect(reasonLocal).not.toBeNull();
+  });
+
+  test("allow_regex permits path that matches block pattern", () => {
+    const policyWithAllowRegex = {
+      ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
+      files: {
+        globs: [".env", ".env.*", "**/.env*"],
+        regex: ["(?i)(^|/)secrets?(/|$)"],
+        allow_globs: [],
+        allow_regex: ["(?i)\\.env\\.example$", "(?i)docs/secrets"],
+      },
+    } as Record<string, unknown>;
+    const blocked = detectSensitiveRead({ file_path: "src/secrets/keys.json" }, policyWithAllowRegex);
+    expect(blocked).not.toBeNull();
+    const allowed = detectSensitiveRead({ file_path: ".env.example" }, policyWithAllowRegex);
+    expect(allowed).toBeNull();
+    const allowedDocs = detectSensitiveRead({ file_path: "docs/secrets/README.md" }, policyWithAllowRegex);
+    expect(allowedDocs).toBeNull();
+  });
+
+  test("path matching block but not allow is blocked", () => {
+    const reason = detectSensitiveRead({ file_path: ".env.local" }, policy);
+    expect(reason).not.toBeNull();
+    expect(reason).toContain("sensitive file pattern");
+  });
+
+  test("policy with only allow_globs does not block", () => {
+    const policyAllowOnly = {
+      ...JSON.parse(JSON.stringify(DEFAULT_POLICY)),
+      files: { globs: [], regex: [], allow_globs: [".env.example"], allow_regex: [] },
+    } as Record<string, unknown>;
+    const reason = detectSensitiveRead({ file_path: ".env.example" }, policyAllowOnly);
+    expect(reason).toBeNull();
+    const reasonAny = detectSensitiveRead({ file_path: "anything.txt" }, policyAllowOnly);
+    expect(reasonAny).toBeNull();
+  });
 });

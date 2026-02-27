@@ -10,8 +10,10 @@ env:
   allow_exact: [string]  # Env names to allow (Codex whitelist)
   allow_regex: [string]  # Regex for allowed env (Codex)
 files:
-  globs: [string]        # Glob patterns (e.g. .env, **/.env.*)
-  regex: [string]        # Path regex (e.g. (?i)(^|/)secrets?(/|$)
+  globs: [string]        # Block (exclude) glob patterns (e.g. .env, **/.env.*)
+  regex: [string]        # Block (exclude) path regex (e.g. (?i)(^|/)secrets?(/|$)
+  allow_globs: [string]  # Allow (include) glob patterns — matches never blocked
+  allow_regex: [string]  # Allow (include) path regex — matches never blocked
 providers:
   cursor: bool
   opencode: bool
@@ -31,6 +33,15 @@ When `bypass_tags_enabled` is true (default), users can add tags to prompts to i
 - `[allow-pii]` — Same as allow-secret (future: separate PII detection).
 
 **Scope:** Bypass tags apply only to `beforeSubmitPrompt`. File reads and shell commands always run full detection.
+
+## File Patterns (block vs allow)
+
+Paths are evaluated in order: **allow first**, then block (like .gitignore where `!` negations override).
+
+- If a path matches any `allow_globs` or `allow_regex` → pass (never blocked).
+- Else if it matches any `globs` or `regex` → block.
+
+Default `allow_globs` includes `.env.example`, `.env.template`, `.env.sample`, `.env.schema` so template files can be read. Add more in `.secretrc` per project.
 
 ## Merge Rules
 

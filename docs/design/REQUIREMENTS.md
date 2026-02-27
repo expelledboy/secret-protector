@@ -11,7 +11,7 @@ secret-protector centralizes secret-blocking policy and installs/upserts control
 - **FR-1.1** Support global config at `~/.config/secret-protector/config.yaml`
 - **FR-1.2** Support project override via `.secretrc` (discovered by walking up from cwd)
 - **FR-1.3** Merge policy: global + project; list values merged and deduplicated (canonical JSON key)
-- **FR-1.4** Policy schema: `version`, `env` (exact, regex, allow_exact, allow_regex), `files` (globs, regex), `providers`, `copilot`
+- **FR-1.4** Policy schema: `version`, `env` (exact, regex, allow_exact, allow_regex), `files` (globs, regex, allow_globs, allow_regex), `providers`, `copilot`
 
 ### FR-2: Commands
 
@@ -32,6 +32,7 @@ secret-protector centralizes secret-blocking policy and installs/upserts control
 - **FR-4.1** Env var detection: exact names + regex patterns; check for references in payload strings (prompt, command, tool args)
 - **FR-4.2** File path detection: glob + regex; collect path-like values from payloads (path keys, slash/backslash in strings)
 - **FR-4.3** Honor `allow_exact` / `allow_regex` for Codex env policy (whitelist)
+- **FR-4.4** Honor `files.allow_globs` / `files.allow_regex` — paths matching allow never blocked even if they match block (gitignore-style)
 
 ## Non-Functional Requirements
 

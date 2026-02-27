@@ -37,7 +37,7 @@ Default policy covers common secrets (GITHUB_PAT, OPENAI_API_KEY, AWS keys, etc.
 
 ## Project Overrides
 
-Drop a `.secretrc` in your repo. Lists merge with global; scalars override. Your team inherits the same rules.
+Drop a `.secretrc` in your repo. Lists merge with global; scalars override. Your team inherits the same rules. File patterns work like .gitignore: allow patterns take precedence over block.
 
 ```yaml
 # .secretrc
@@ -45,6 +45,7 @@ env:
   exact: [STRIPE_SECRET_KEY]
 files:
   globs: ['**/*production*.tfvars']
+  allow_globs: ['config/env.example.yml']
 ```
 
 ---

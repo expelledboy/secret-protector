@@ -111,4 +111,28 @@ describe("policy", () => {
       fs.rmSync(parent, { recursive: true, force: true });
     }
   });
+
+  test("loadEffectivePolicy merges allow_globs from project .secretrc", () => {
+    const tmpHome = path.join(os.tmpdir(), `sp-allow-${Date.now()}`);
+    const tmpProject = path.join(os.tmpdir(), `sp-allow-proj-${Date.now()}`);
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.mkdirSync(tmpProject, { recursive: true });
+    const paths = runtimePaths(tmpHome);
+    fs.mkdirSync(path.dirname(paths.globalConfigPath), { recursive: true });
+    saveYamlDict(paths.globalConfigPath, { version: 1, env: { exact: [] }, files: { globs: [".env"], allow_globs: [".env.example"] } });
+    fs.writeFileSync(
+      path.join(tmpProject, ".secretrc"),
+      "files:\n  allow_globs:\n    - 'config/local.env.example'\n",
+      "utf-8"
+    );
+    try {
+      const [policy] = loadEffectivePolicy(paths, tmpProject);
+      const allowGlobs = (policy.files as Record<string, string[]>).allow_globs ?? [];
+      expect(allowGlobs).toContain(".env.example");
+      expect(allowGlobs).toContain("config/local.env.example");
+    } finally {
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      fs.rmSync(tmpProject, { recursive: true, force: true });
+    }
+  });
 });
