@@ -1,13 +1,22 @@
 {
   "name": "secret-protector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Centralize secret-blocking policy across Cursor, OpenCode, Codex, and Copilot",
   "type": "module",
   "main": "dist/cli.js",
   "repository": "github:expelledboy/secret-protector",
   "homepage": "https://github.com/expelledboy/secret-protector#readme",
   "bugs": "https://github.com/expelledboy/secret-protector/issues",
-  "keywords": ["cursor", "opencode", "codex", "copilot", "secrets", "security", "ai", "hooks"],
+  "keywords": [
+    "cursor",
+    "opencode",
+    "codex",
+    "copilot",
+    "secrets",
+    "security",
+    "ai",
+    "hooks"
+  ],
   "author": "expelledboy",
   "license": "MIT",
   "bin": {
@@ -28,7 +37,8 @@
     "dev": "bun run src/cli.ts",
     "test": "bun test",
     "prepublishOnly": "bun run build",
-    "suggest-bump": "bun run scripts/suggest-bump.ts"
+    "suggest-bump": "bun run scripts/suggest-bump.ts",
+    "release": "bun run scripts/release.ts"
   },
   "dependencies": {
     "commander": "^14.0.3",
