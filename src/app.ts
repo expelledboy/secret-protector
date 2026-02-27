@@ -158,61 +158,58 @@ export function cmdRenderCopilot(
   return 0;
 }
 
+const VALID_PROVIDERS = ["cursor", "opencode", "codex", "copilot"] as const;
+
 export function main(
-  argv: string[],
+  cmd: string,
+  opts: Record<string, unknown>,
+  args: string[],
   options: { home?: string; distDir?: string } = {}
 ): number {
   const paths = runtimePaths(options.home);
   const distDir = options.distDir ?? path.dirname(fileURLToPath(import.meta.url));
 
-  const cmd = argv[0];
-  const rest = argv.slice(1);
-
-  const VALID_PROVIDERS = ["cursor", "opencode", "codex", "copilot"] as const;
-
-  const parseInit = () => ({ force: rest.includes("--force") });
-  const parseInstall = () => {
-    const onlyVal = rest.find((_, i, a) => a[i - 1] === "--only") ?? rest.find((x) => x.startsWith("--only="))?.split("=")[1];
-    let only: string[] | undefined;
-    if (onlyVal) {
-      only = onlyVal.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-      const invalid = only.filter((p) => !VALID_PROVIDERS.includes(p as typeof VALID_PROVIDERS[number]));
-      if (invalid.length > 0) {
-        eprint(`Unknown provider: ${invalid.join(", ")}. Valid: ${VALID_PROVIDERS.join(", ")}`);
-        return { _invalid: true } as { project?: string; dryRun?: boolean; only?: string[]; _invalid?: boolean };
-      }
-    }
-    return {
-      project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined,
-      dryRun: rest.includes("--dry-run"),
-      only,
-    };
-  };
-  const parseHook = () => ({ provider: rest[0] ?? "", event: rest[1] ?? "" });
-  const parseRenderCopilot = () => {
-    const formatIdx = rest.findIndex((x) => x === "--format" || x.startsWith("--format="));
-    let format: "default" | "github" | undefined;
-    if (formatIdx >= 0) {
-      const arg = rest[formatIdx];
-      const val = arg.startsWith("--format=") ? arg.slice(9) : rest[formatIdx + 1];
-      format = val === "github" ? "github" : undefined;
-    }
-    return {
-      project: rest.find((_, i, a) => a[i - 1] === "--project") ?? undefined,
-      output: rest.find((_, i, a) => a[i - 1] === "--output") ?? undefined,
-      format,
-    };
-  };
-
   try {
-    if (cmd === "init") return cmdInit(parseInit(), paths);
-    if (cmd === "install") {
-      const installArgs = parseInstall();
-      if ((installArgs as { _invalid?: boolean })._invalid) return 1;
-      return cmdInstall(installArgs, paths, distDir);
+    if (cmd === "init") {
+      return cmdInit({ force: opts.force === true }, paths);
     }
-    if (cmd === "hook") return cmdHook(parseHook(), paths);
-    if (cmd === "render-copilot") return cmdRenderCopilot(parseRenderCopilot(), paths);
+    if (cmd === "install") {
+      let only: string[] | undefined;
+      if (opts.only != null) {
+        const raw = Array.isArray(opts.only) ? opts.only.join(",") : String(opts.only);
+        only = raw ? raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : undefined;
+        if (only) {
+          const invalid = only.filter((p) => !VALID_PROVIDERS.includes(p as (typeof VALID_PROVIDERS)[number]));
+          if (invalid.length > 0) {
+            eprint(`Unknown provider: ${invalid.join(", ")}. Valid: ${VALID_PROVIDERS.join(", ")}`);
+            return 1;
+          }
+        }
+      }
+      return cmdInstall(
+        {
+          project: opts.project != null ? String(opts.project) : undefined,
+          dryRun: opts.dryRun === true,
+          only,
+        },
+        paths,
+        distDir
+      );
+    }
+    if (cmd === "hook") {
+      return cmdHook({ provider: args[0] ?? "", event: args[1] ?? "" }, paths);
+    }
+    if (cmd === "render-copilot") {
+      const format = opts.format === "github" ? ("github" as const) : undefined;
+      return cmdRenderCopilot(
+        {
+          project: opts.project != null ? String(opts.project) : undefined,
+          output: opts.output != null ? String(opts.output) : undefined,
+          format,
+        },
+        paths
+      );
+    }
   } catch (e) {
     eprint(`error: ${e}`);
     return 1;

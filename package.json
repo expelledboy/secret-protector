@@ -19,15 +19,18 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "api-spec.json"
   ],
   "scripts": {
     "build": "bun build src/cli.ts --outdir=dist --minify --target=node",
     "dev": "bun run src/cli.ts",
     "test": "bun test",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "suggest-bump": "bun run scripts/suggest-bump.ts"
   },
   "dependencies": {
+    "commander": "^14.0.3",
     "minimatch": "^9.0.5",
     "yaml": "^2.6.1"
   },

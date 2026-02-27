@@ -5,6 +5,7 @@ import {
   detectSensitiveRead,
   detectSensitiveCommand,
 } from "./detector.js";
+import { loadSpec } from "./spec.js";
 
 export type DecisionMode = "block" | "warn" | "log";
 
@@ -197,6 +198,9 @@ export function evaluateHook(
   policy: Record<string, unknown>
 ): Record<string, unknown> {
   const p = provider.trim().toLowerCase();
+  const spec = loadSpec();
+  const events = spec.hookEvents[p];
+  if (!events || !events.includes(event)) return {};
   if (p === "cursor") return cursorDecision(event, payload, policy);
   if (p === "opencode") return opencodeDecision(event, payload, policy);
   return {};

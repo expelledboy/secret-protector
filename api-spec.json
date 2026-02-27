@@ -1,0 +1,25 @@
+{
+  "commands": [
+    { "name": "init", "description": "Create default global config", "options": ["--force"] },
+    { "name": "install", "description": "Upsert provider configs and hooks", "options": ["--project <path>", "--dry-run", "--only <list>"] },
+    { "name": "hook", "description": "Hook entrypoint for provider integrations", "options": [] },
+    { "name": "render-copilot", "description": "Render Copilot exclusion artifact", "options": ["--project <path>", "--output <path>", "--format <fmt>"] }
+  ],
+  "globalOptions": ["--install", "-i"],
+  "hookEvents": {
+    "cursor": ["beforeSubmitPrompt", "beforeReadFile", "beforeTabFileRead", "beforeShellExecution", "preToolUse"],
+    "opencode": ["tool.execute.before"]
+  },
+  "hookResponseFields": {
+    "cursor": {
+      "beforeSubmitPrompt": ["continue", "user_message"],
+      "beforeReadFile": ["permission", "user_message"],
+      "beforeTabFileRead": ["permission", "user_message"],
+      "beforeShellExecution": ["permission", "user_message"],
+      "preToolUse": ["permission", "user_message"]
+    },
+    "opencode": {
+      "tool.execute.before": ["block", "user_message"]
+    }
+  }
+}
