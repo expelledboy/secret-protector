@@ -12,6 +12,15 @@ secret-protector centralizes secret-blocking policy and installs controls for Cu
 
 **Key paths:** `~/.config/secret-protector/config.yaml`, `~/.cursor/hooks.json`, `~/.config/opencode/plugins/`, `~/.codex/config.toml`
 
+## Before Commit
+
+Before writing a commit message, run `bun run suggest-bump` to see API changes since the last tag. Use the output to write a semantic commit message:
+
+- Added API items → `feat(scope): add X`
+- Removed API items → `feat!: remove X` or `BREAKING CHANGE: X`
+- Bug fixes → `fix(scope): description`
+- Docs, tests, refactors → `chore:`, `docs:`, `test:`
+
 ## Regeneration
 
 To regenerate the project from specs: read `docs/design/REGENERATION.md` and follow the file-by-file mapping. All design specs are in `docs/design/`.

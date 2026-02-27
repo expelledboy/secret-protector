@@ -23,6 +23,7 @@
     "api-spec.json"
   ],
   "scripts": {
+    "prepare": "git config --local core.hooksPath .github/hooks 2>/dev/null || true",
     "build": "bun build src/cli.ts --outdir=dist --minify --target=node",
     "dev": "bun run src/cli.ts",
     "test": "bun test",
