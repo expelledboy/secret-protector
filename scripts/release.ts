@@ -99,7 +99,7 @@ function main(): number {
     console.log("\n[DRY RUN] Would:");
     console.log(`  - Set package.json version to ${next}`);
     console.log(`  - git commit -m "chore: release v${next}"`);
-    console.log(`  - git tag v${next}`);
+    console.log(`  - git tag -a v${next} -m "chore: release v${next}"`);
     console.log(`  - git push origin HEAD --follow-tags`);
     return 0;
   }
@@ -109,7 +109,8 @@ function main(): number {
 
   if (run("git", ["add", "package.json"]).code !== 0) return 1;
   if (run("git", ["commit", "-m", `chore: release v${next}`]).code !== 0) return 1;
-  if (run("git", ["tag", `v${next}`]).code !== 0) return 1;
+  // Annotated tag required: --follow-tags only pushes annotated tags, not lightweight
+  if (run("git", ["tag", "-a", `v${next}`, "-m", `chore: release v${next}`]).code !== 0) return 1;
   if (run("git", ["push", "origin", "HEAD", "--follow-tags"]).code !== 0) return 1;
 
   console.log(`\nReleased v${next}. Publish workflow will run on GitHub.`);
