@@ -1,6 +1,6 @@
 {
   "name": "secret-protector",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Centralize secret-blocking policy across Cursor, OpenCode, Codex, and Copilot",
   "type": "module",
   "main": "dist/cli.js",
