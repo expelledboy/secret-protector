@@ -34,7 +34,7 @@ function runHook(event, payload) {
   }
 }
 
-export const SecretProtector = {
+const SecretProtector = {
   "tool.execute.before": async (input) => {
     const decision = runHook("tool.execute.before", input);
     if (decision && decision.block) {
@@ -43,6 +43,8 @@ export const SecretProtector = {
     return input;
   },
 };
+
+export default async () => SecretProtector;
 `;
 }
 

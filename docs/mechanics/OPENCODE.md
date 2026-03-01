@@ -39,7 +39,7 @@ export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
 
 **Context:** `$` (Bun shell), `client` (OpenCode SDK), `worktree`, `directory`, `project`.
 
-**secret-protector plugin:** Exports a plain object `SecretProtector` with `tool.execute.before` directly. OpenCode may accept both formats; if compatibility issues arise, consider wrapping in an async function that returns the hooks object.
+**secret-protector plugin:** Exports `export default async () => SecretProtector`, where `SecretProtector` is an object with `tool.execute.before`. OpenCode requires the async function format.
 
 ---
 
